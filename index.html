@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>내 소리 앨범</title>
+<style>
+:root{--bg:#0d1114;--panel:#141b20;--panel2:#1a232a;--ink:#e4ecee;--muted:#8e9ea4;--line:#26323a;--grid:#2c3a43;--core:#3fd6df;--warm:#e8a94a;--ref:#9aa9b1;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans KR","Malgun Gothic",system-ui,sans-serif;font-size:15px;line-height:1.6;padding:20px 16px 48px}
+main{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+h1{font-size:1.4rem;margin:0}h2{font-size:1rem;margin:0}
+p{margin:0}.sub{color:var(--muted);font-size:.9rem}
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+button{font:inherit;font-size:.9rem;padding:7px 14px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);cursor:pointer}
+button.primary{background:var(--core);color:#062a2d;border-color:var(--core);font-weight:700}
+button.small{padding:3px 10px;font-size:.8rem}
+button:disabled{opacity:.4;cursor:default}
+button:focus-visible,input:focus-visible{outline:2px solid var(--core);outline-offset:2px}
+.grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:16px}
+@media (max-width:800px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px}
+#polar{width:100%;aspect-ratio:1;display:block}
+#timeline{width:100%;height:150px;display:block}
+.big{font-size:1.7rem;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.25}
+.diffs{display:flex;flex-direction:column;gap:4px;font-size:1rem}
+.diffs .same{color:var(--core);font-weight:700}
+.row{display:grid;grid-template-columns:1fr auto;gap:3px 12px;font-size:.9rem}
+.row span:nth-child(odd){color:var(--muted)}
+.row span:nth-child(even){font-variant-numeric:tabular-nums;text-align:right}
+.list{display:flex;flex-direction:column;gap:6px;max-height:420px;overflow-y:auto}
+.item{display:grid;grid-template-columns:52px 1fr auto;gap:10px;align-items:center;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+.item.target{border-color:var(--core)}
+.item canvas{width:52px;height:52px}
+.item .meta{font-size:.82rem;line-height:1.4;min-width:0}
+.item .meta b{font-size:.92rem}
+.item .meta .muted{color:var(--muted)}
+.item .acts{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end}
+.item input{font:inherit;font-size:.8rem;background:transparent;border:0;border-bottom:1px dashed var(--grid);color:var(--ink);width:100%;padding:1px 0}
+.msg{min-height:1.4em;color:var(--warm);font-size:.9rem}
+.tag{font-size:.72rem;font-weight:700;letter-spacing:.05em;padding:2px 8px;border-radius:99px;background:#1f3632;color:var(--core)}
+.empty{color:var(--muted);font-size:.88rem;padding:8px 2px}
+.help{font-size:.88rem;color:var(--muted)}
+.help ol{margin:4px 0 0;padding-left:1.2em}
+.filebtn{position:relative;overflow:hidden}
+.filebtn input{position:absolute;inset:0;opacity:0;cursor:pointer}
+</style>
+</head>
+<body>
+<main>
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <h1>내 소리 앨범 <span class="tag">측정만 · 판정 없음</span></h1>
+    <p class="sub">마음에 드는 소리를 모양으로 저장해 두고, 다시 들으며 그 소리를 재현하는 연습 도구입니다. 좋고 나쁨을 판정하지 않고, 목표 소리와 무엇이 다른지만 알려 줍니다.</p>
+  </div>
+
+  <div class="bar">
+    <button id="bMic" class="primary" type="button">마이크 켜기</button>
+    <button id="bSaveLast" type="button" disabled>방금 소리 저장</button>
+    <span class="filebtn"><button type="button" tabindex="-1">녹음 파일로 추가</button><input id="fImport" type="file" accept="audio/*" multiple aria-label="녹음 파일로 추가"></span>
+    <span class="msg" id="msg"></span>
+  </div>
+
+  <div class="grid">
+    <div class="panel">
+      <canvas id="polar" aria-label="울림 모양"></canvas>
+      <p class="sub">점선 = 목표 소리의 울림 모양 · 실선 = 지금 소리 · 점 = 최근 3초 (가로: 짝수 배음, 세로: 음정)</p>
+    </div>
+    <div class="panel">
+      <p class="sub">지금 음</p>
+      <p class="big" id="note">–</p>
+      <p class="sub" id="targetLine">목표 소리 없음</p>
+      <div class="diffs" id="diffs"><span class="sub">앨범에서 목표 소리를 고르면 무엇이 다른지 알려 줍니다.</span></div>
+      <div class="row">
+        <span>울림 모양 차이 (배음 1~8)</span><span id="rShape">–</span>
+        <span>짝수 배음</span><span id="rEo">–</span>
+        <span>음정</span><span id="rPitch">–</span>
+        <span>음정 흔들림 (최근 2초)</span><span id="rWob">–</span>
+        <span>음량</span><span id="rLvl">–</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <p class="sub">음정 흐름 (최근 10초 · 가운데 = 목표 음정, 목표가 없으면 평균율 · 띠 = ±10 cents)</p>
+    <canvas id="timeline" aria-label="음정 흐름"></canvas>
+  </div>
+
+  <div class="grid">
+    <div class="panel">
+      <h2>방금 분 소리 <span class="sub" style="font-weight:400">(자동 기록 · 최근 12개 · 새로고침하면 사라짐)</span></h2>
+      <div class="list" id="takes"><p class="empty">마이크를 켜고 한 음을 1초 이상 불면 여기에 쌓입니다.</p></div>
+    </div>
+    <div class="panel">
+      <h2>내 소리 앨범 <span class="sub" style="font-weight:400">(이 브라우저에 저장)</span></h2>
+      <div class="list" id="album"><p class="empty">마음에 든 소리를 저장하면 여기에 모입니다.</p></div>
+    </div>
+  </div>
+
+  <div class="help">
+    <b>사용법</b>
+    <ol>
+      <li>마이크를 켜고 평소처럼 부세요. 한 음을 불고 멈출 때마다 "방금 분 소리"에 하나씩 자동으로 쌓입니다.</li>
+      <li>마음에 든 소리가 나왔다면 "방금 소리 저장"을 누르거나, 목록에서 ▶로 들어 보고 골라 "저장"을 누르세요.</li>
+      <li>앨범에서 "목표로"를 누르면, 그 소리를 기준으로 지금 소리와의 차이를 보여 줍니다. "▶"로 목표 소리를 먼저 듣고 따라 불어 보세요.</li>
+      <li>선생님이나 좋은 연주의 녹음 파일도 "녹음 파일로 추가"로 앨범에 넣을 수 있습니다. 마이크가 다르면 모양이 조금 달라 보일 수 있으니, 완전히 겹치기보다 같은 방향으로 움직이는지를 보세요.</li>
+      <li>매번 같은 자리, 같은 거리에서 불면 비교가 정확해집니다. 녹음은 이 브라우저에만 저장되고 어디에도 보내지 않습니다.</li>
+    </ol>
+  </div>
+</main>
+
+<script>
+(function(){
+const N=4096, MAXH=12, WIN_S=10, RING_S=60;
+let ctx,sr,ring,wpos=0,total=0,hann,running=false,lastAnalyzed=0;
+let frames=[],takes=[],album=[],targetId=null,cur=null,smooth=null;
+const $=id=>document.getElementById(id);
+const NAMES=['C','C#','D','Eb','E','F','F#','G','Ab','A','Bb','B'];
+function noteOf(c){const m=Math.round(69+c/100);return NAMES[(m%12+12)%12]+(Math.floor(m/12)-1)}
+function written(c){return noteOf(c+200)}
+function avg(a){return a.length?a.reduce((s,v)=>s+v,0)/a.length:NaN}
+function sd(a){if(a.length<2)return 0;const m=avg(a);return Math.sqrt(a.reduce((s,v)=>s+(v-m)**2,0)/(a.length-1))}
+function css(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim()}
+function say(t){$('msg').textContent=t}
+
+/* ---------- analysis ---------- */
+function fft(re,im){const n=re.length;for(let i=1,j=0;i<n;i++){let b=n>>1;for(;j&b;b>>=1)j^=b;j^=b;if(i<j){let t=re[i];re[i]=re[j];re[j]=t;t=im[i];im[i]=im[j];im[j]=t}}
+  for(let len=2;len<=n;len<<=1){const a=-2*Math.PI/len,wr=Math.cos(a),wi=Math.sin(a);for(let i=0;i<n;i+=len){let cr=1,ci=0;for(let j=0;j<len/2;j++){const k=i+j+len/2,ur=re[i+j],ui=im[i+j],vr=re[k]*cr-im[k]*ci,vi=re[k]*ci+im[k]*cr;re[i+j]=ur+vr;im[i+j]=ui+vi;re[k]=ur-vr;im[k]=ui-vi;const t=cr*wr-ci*wi;ci=cr*wi+ci*wr;cr=t}}}}
+function yin(x,rate){const tMin=Math.floor(rate/1700),tMax=Math.floor(rate/130),W=Math.min(2048,x.length-tMax);const d=new Float64Array(tMax+1);
+  for(let t=tMin;t<=tMax;t++){let s=0;for(let i=0;i<W;i++){const v=x[i]-x[i+t];s+=v*v}d[t]=s}
+  let run=0;const cm=new Float64Array(tMax+1).fill(1);for(let t=tMin;t<=tMax;t++){run+=d[t];cm[t]=run>0?d[t]*(t-tMin+1)/run:1}
+  for(let t=tMin+1;t<tMax;t++){if(cm[t]<0.15){while(t+1<tMax&&cm[t+1]<cm[t])t++;const a=cm[t-1],b=cm[t],c=cm[t+1],den=a-2*b+c;return rate/(t+(den?0.5*(a-c)/den:0))}}return 0}
+function makeHann(){const h=new Float64Array(N);for(let i=0;i<N;i++)h[i]=0.5-0.5*Math.cos(2*Math.PI*i/(N-1));return h}
+function analyzeFrame(x,t,rate,gate){
+  let e=0;for(let i=0;i<N;i++)e+=x[i]*x[i];const db=10*Math.log10(e/N+1e-12);const fr={t,db};if(db<gate)return fr;
+  const f0=yin(x,rate);if(!f0)return fr;
+  const re=new Float64Array(N),im=new Float64Array(N);for(let i=0;i<N;i++)re[i]=x[i]*hann[i];fft(re,im);
+  const df=rate/N,lo=Math.round(100/df),hi=Math.min(N/2-1,Math.round(8000/df));
+  const P=new Float64Array(N/2);for(let i=0;i<N/2;i++)P[i]=re[i]*re[i]+im[i]*im[i];
+  const mask=new Uint8Array(N/2);let ev=0,od=0;const h=[];
+  for(let k=1;k*f0<=8000;k++){const c=k*f0/df;const a=Math.max(lo,Math.floor(c*0.97)),b=Math.min(hi,Math.ceil(c*1.03));let bi=a;for(let i=a;i<=b;i++)if(P[i]>P[bi])bi=i;
+    let pk=0;for(let i=Math.max(lo,bi-2);i<=Math.min(hi,bi+2);i++){if(!mask[i]){pk+=P[i];mask[i]=1}}if(k%2)od+=pk;else ev+=pk;if(k<=MAXH)h.push(10*Math.log10(pk+1e-20))}
+  while(h.length<MAXH)h.push(null);
+  fr.f0=f0;fr.cents=1200*Math.log2(f0/440);fr.eo=10*Math.log10(ev/od+1e-12);fr.prof=h.map(v=>v==null?null:v-h[0]);return fr}
+function meanProf(fs){const p=[];for(let k=0;k<MAXH;k++){const v=fs.map(f=>f.prof[k]).filter(x=>x!=null);p.push(v.length?avg(v):null)}return p}
+function shapeDiff(a,b){const d=[];for(let k=1;k<8;k++)if(a[k]!=null&&b[k]!=null)d.push((a[k]-b[k])**2);return d.length?Math.sqrt(avg(d)):NaN}
+function summarize(vf,t0){ // vf: voiced frames of one note
+  const steady=vf.slice(Math.min(Math.floor(vf.length*0.2),8));const use=steady.length>=4?steady:vf;
+  const med=avg(use.map(f=>f.cents));let st=null;
+  for(let i=0;i+4<vf.length;i++){if(vf.slice(i,i+5).every(f=>Math.abs(f.cents-med)<15)){st=vf[i].t;break}}
+  return {cents:med,note:noteOf(med),prof:meanProf(use),eo:avg(use.map(f=>f.eo)),wob:sd(use.map(f=>f.cents)),attack:st==null?null:Math.max(0,(st-t0)*1000),dur:vf[vf.length-1].t-t0}}
+
+/* ---------- storage (IndexedDB) ---------- */
+let db=null;
+function openDB(){return new Promise(res=>{try{const r=indexedDB.open('toneAlbum',1);r.onupgradeneeded=()=>r.result.createObjectStore('album',{keyPath:'id'});r.onsuccess=()=>{db=r.result;res()};r.onerror=()=>res()}catch(e){res()}})}
+function dbAll(){return new Promise(res=>{if(!db)return res([]);try{const q=db.transaction('album').objectStore('album').getAll();q.onsuccess=()=>res(q.result||[]);q.onerror=()=>res([])}catch(e){res([])}})}
+function dbPut(it){try{if(db)db.transaction('album','readwrite').objectStore('album').put(it)}catch(e){}}
+function dbDel(id){try{if(db)db.transaction('album','readwrite').objectStore('album').delete(id)}catch(e){}}
+
+/* ---------- mic + ring buffer ---------- */
+async function start(){
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+    ctx=ctx||new (window.AudioContext||window.webkitAudioContext)();await ctx.resume();sr=ctx.sampleRate;
+    ring=new Float32Array(sr*RING_S);
+    const src=ctx.createMediaStreamSource(stream);const sp=ctx.createScriptProcessor(2048,1,1);const mute=ctx.createGain();mute.gain.value=0;
+    sp.onaudioprocess=e=>{const d=e.inputBuffer.getChannelData(0);for(let i=0;i<d.length;i++){ring[wpos]=d[i];wpos=(wpos+1)%ring.length}total+=d.length};
+    src.connect(sp);sp.connect(mute);mute.connect(ctx.destination);
+    running=true;$('bMic').textContent='마이크 켜짐';$('bMic').disabled=true;say('');tick();
+  }catch(e){say('마이크를 켤 수 없습니다. 주소창 옆에서 마이크 권한을 허용해 주세요. (크롬 권장)')}
+}
+function readRing(endTotal,len){const out=new Float32Array(len);const start=endTotal-len;for(let i=0;i<len;i++){const g=start+i;out[i]=g<0||total-g>ring.length?0:ring[((g%ring.length)+ring.length)%ring.length]}return out}
+
+/* ---------- take segmentation ---------- */
+let seg=null; // {startTotal,t0,frames:[],lastVoiced}
+function onFrame(fr,endTotal){
+  const voiced=!!fr.f0;
+  if(voiced){
+    if(seg&&Math.abs(fr.cents-seg.ref)>70&&seg.frames.length>=6){closeSeg(endTotal);}
+    if(!seg)seg={startTotal:endTotal-N,t0:fr.t-N/sr,frames:[],ref:fr.cents};
+    seg.frames.push(fr);seg.lastVoiced=fr.t;seg.endTotal=endTotal;if(seg.frames.length<=6)seg.ref=avg(seg.frames.map(f=>f.cents));
+  } else if(seg&&fr.t-seg.lastVoiced>0.2){closeSeg(seg.endTotal)}
+}
+function closeSeg(endTotal){
+  const s=seg;seg=null;if(!s||s.frames.length<12)return; // ~0.5s minimum
+  const dur=s.frames[s.frames.length-1].t-s.t0;if(dur<0.8)return;
+  const len=Math.min(ring.length,Math.round((endTotal-s.startTotal)+0.15*sr));
+  const pcm=readRing(endTotal+Math.round(0.1*sr)>total?total:endTotal+Math.round(0.1*sr),len);
+  const sum=summarize(s.frames,s.t0);
+  takes.unshift({id:'t'+Date.now(),date:new Date(),sr,pcm,...sum});takes=takes.slice(0,12);
+  $('bSaveLast').disabled=false;renderTakes();
+}
+
+/* ---------- loop ---------- */
+function tick(){
+  if(!running)return;requestAnimationFrame(tick);
+  const hop=Math.round(sr*0.046);
+  while(total-lastAnalyzed>=hop&&total>=N){
+    lastAnalyzed=total-lastAnalyzed>sr?total:lastAnalyzed+hop;
+    const x=readRing(lastAnalyzed,N);const t=lastAnalyzed/sr;
+    const fr=analyzeFrame(x,t,sr,-55);frames.push(fr);onFrame(fr,lastAnalyzed);
+  }
+  const now=total/sr;while(frames.length&&frames[0].t<now-WIN_S)frames.shift();
+  if(frames.length)update(frames[frames.length-1],now);draw(now);
+}
+function target(){return album.find(a=>a.id===targetId)||null}
+function describe(d){ // d: {sh,dEo,dC}
+  const out=[];
+  if(!isNaN(d.sh)&&d.sh>3)out.push('울림 모양이 다릅니다 (차이 '+d.sh.toFixed(1)+' dB)');
+  if(Math.abs(d.dEo)>2)out.push(d.dEo>0?'짝수 배음이 더 많습니다 (+'+d.dEo.toFixed(1)+' dB)':'짝수 배음이 더 적습니다 ('+d.dEo.toFixed(1)+' dB)');
+  if(Math.abs(d.dC)>8)out.push(d.dC>0?'음정이 조금 높습니다 (+'+Math.round(d.dC)+' cents)':'음정이 조금 낮습니다 ('+Math.round(d.dC)+' cents)');
+  return out}
+function update(fr,now){
+  $('rLvl').textContent=fr.db>-100?Math.round(fr.db)+' dB':'–';
+  const recent=frames.filter(f=>f.f0&&f.t>now-0.6);
+  if(recent.length<3){$('note').textContent='–';smooth=null;cur=null;return}
+  const cents=avg(recent.map(f=>f.cents));smooth=meanProf(recent);const eo=avg(recent.map(f=>f.eo));
+  cur={cents,eo};
+  $('note').textContent=noteOf(cents)+' · 기보 '+written(cents);
+  $('rWob').textContent='±'+sd(frames.filter(f=>f.f0&&f.t>now-2&&Math.abs(f.cents-cents)<70).map(f=>f.cents)).toFixed(1)+' cents';
+  const T=target();
+  if(!T){$('rShape').textContent='–';$('rEo').textContent=eo.toFixed(1)+' dB';$('rPitch').textContent='평균율 '+fmtC(cents-Math.round(cents/100)*100);return}
+  if(Math.abs(cents-T.cents)>70){$('diffs').innerHTML='<span class="sub">목표 소리는 '+T.note+'(기보 '+written(T.cents)+')입니다. 같은 음을 불어 주세요.</span>';$('rShape').textContent='–';$('rEo').textContent='–';$('rPitch').textContent='–';return}
+  const d={sh:shapeDiff(smooth,T.prof),dEo:eo-T.eo,dC:cents-T.cents};
+  $('rShape').textContent=isNaN(d.sh)?'–':d.sh.toFixed(1)+' dB';$('rEo').textContent=fmtDb(d.dEo)+' (목표 대비)';$('rPitch').textContent=fmtC(d.dC)+' (목표 대비)';
+  const ds=describe(d);$('diffs').innerHTML=ds.length?ds.map(s=>'<span>'+s+'</span>').join(''):'<span class="same">목표 소리와 비슷합니다</span>';
+}
+function fmtC(v){return(v>=0?'+':'')+Math.round(v)+' cents'}
+function fmtDb(v){return(v>=0?'+':'')+v.toFixed(1)+' dB'}
+
+/* ---------- drawing ---------- */
+function setup(cv,h){const dpr=window.devicePixelRatio||1;const w=cv.clientWidth,H=h||w;const W2=Math.round(w*dpr),H2=Math.round(H*dpr);if(cv.width!==W2||cv.height!==H2){cv.width=W2;cv.height=H2}const c=cv.getContext('2d');c.setTransform(dpr,0,0,dpr,0,0);return[c,w,H]}
+function contour(c,cx,cy,Rad,p,col,dash,lw){if(!p)return;c.beginPath();for(let k=0;k<=MAXH;k++){const v=p[k%MAXH];const db=v==null?-60:v;const r=Rad*(0.3+0.65*Math.max(0,Math.min(1,(db+60)/60)));const a=k/MAXH*Math.PI*2-Math.PI/2;const x=cx+r*Math.cos(a),y=cy+r*Math.sin(a);k?c.lineTo(x,y):c.moveTo(x,y)}
+  c.strokeStyle=col;c.lineWidth=lw;c.setLineDash(dash);c.lineJoin='round';c.stroke();c.setLineDash([])}
+function draw(now){drawPolar(now);drawTimeline(now)}
+function drawPolar(now){
+  const[c,w]=setup($('polar'));const cx=w/2,cy=w/2,Rad=w/2-24,S=4;c.clearRect(0,0,w,w);
+  c.strokeStyle=css('--grid');c.lineWidth=1;c.setLineDash([3,5]);for(let k=1;k<=4;k++){c.beginPath();c.arc(cx,cy,Rad*k/S,0,7);c.stroke()}c.setLineDash([]);
+  c.beginPath();c.moveTo(cx-Rad,cy);c.lineTo(cx+Rad,cy);c.moveTo(cx,cy-Rad);c.lineTo(cx,cy+Rad);c.stroke();
+  c.fillStyle=css('--muted');c.font='12px system-ui';c.textAlign='center';c.fillText('음정 높음',cx,14);c.fillText('음정 낮음',cx,w-4);
+  c.textAlign='left';c.fillText('짝수 배음 적음',4,cy-6);c.textAlign='right';c.fillText('짝수 배음 많음',w-4,cy-6);
+  const T=target();const onT=T&&cur&&Math.abs(cur.cents-T.cents)<=70;
+  if(T)contour(c,cx,cy,Rad,T.prof,css('--ref'),[6,5],1.6);
+  if(smooth)contour(c,cx,cy,Rad,smooth,css('--core'),[],2.2);
+  if(running){const ref=onT?T:(cur?{eo:cur.eo,cents:cur.cents}:null);
+    if(ref){frames.filter(f=>f.f0&&f.t>now-3&&Math.abs(f.cents-ref.cents)<70).forEach(f=>{let x=(f.eo-ref.eo)/3,y=(f.cents-ref.cents)/5;const m=Math.hypot(x,y);if(m>S){x*=S/m;y*=S/m}
+      c.globalAlpha=0.15+0.7*(1-(now-f.t)/3);c.fillStyle=css(onT?'--core':'--muted');c.beginPath();c.arc(cx+x/S*Rad,cy-y/S*Rad,3,0,7);c.fill()});c.globalAlpha=1}}
+  c.fillStyle=css('--ink');c.beginPath();c.arc(cx,cy,3,0,7);c.fill();
+  c.fillStyle=css('--muted');c.textAlign='center';c.font='13px system-ui';
+  if(!running)c.fillText('마이크를 켜 주세요',cx,cy+28);else if(!T)c.fillText('앨범에서 목표 소리를 고르면 점선으로 겹쳐 보입니다',cx,cy+28);
+}
+function drawTimeline(now){
+  const[c,w,h]=setup($('timeline'),150);c.clearRect(0,0,w,h);const L=36,Rr=w-6,T0=8,B=h-22,mid=(T0+B)/2,span=50;
+  const y=d=>mid-Math.max(-span,Math.min(span,d))/span*(B-T0)/2;
+  c.fillStyle='rgba(63,214,223,0.10)';c.fillRect(L,y(10),Rr-L,y(-10)-y(10));
+  c.strokeStyle=css('--grid');c.fillStyle=css('--muted');c.font='11px system-ui';c.textAlign='right';
+  [-50,-25,0,25,50].forEach(v=>{c.beginPath();c.moveTo(L,y(v));c.lineTo(Rr,y(v));c.stroke();c.fillText((v>0?'+':'')+v,L-4,y(v)+4)});
+  if(!running)return;const x=t=>Rr-(now-t)/WIN_S*(Rr-L);c.textAlign='center';for(let s=0;s<=WIN_S;s+=2)c.fillText(s?'-'+s+'초':'지금',x(now-s),h-6);
+  const T=target();const v=frames.filter(f=>f.f0);c.lineWidth=2.4;c.lineCap='round';c.strokeStyle=css('--core');
+  for(let i=1;i<v.length;i++){const a=v[i-1],b=v[i];if(b.t-a.t>0.2||Math.abs(a.cents-b.cents)>60)continue;
+    const center=T&&Math.abs(b.cents-T.cents)<=70?T.cents:Math.round(b.cents/100)*100;c.beginPath();c.moveTo(x(a.t),y(a.cents-center));c.lineTo(x(b.t),y(b.cents-center));c.stroke()}
+}
+function thumb(cv,prof,ref){const[c,w]=setup(cv,52);c.clearRect(0,0,w,w);const cx=w/2,cy=w/2,R=w/2-2;if(ref)contour(c,cx,cy,R,ref,css('--ref'),[3,3],1);contour(c,cx,cy,R,prof,css('--core'),[],1.5)}
+
+/* ---------- lists ---------- */
+function fmtTime(d){d=new Date(d);return (d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0')}
+function statLine(it){return it.note+' (기보 '+written(it.cents)+') · '+it.dur.toFixed(1)+'초 · 흔들림 ±'+it.wob.toFixed(1)+'c'+(it.attack!=null?' · 어택 '+Math.round(it.attack)+'ms':'')}
+function vsTarget(it){const T=target();if(!T||T.id===it.id||Math.abs(it.cents-T.cents)>70)return'';const ds=describe({sh:shapeDiff(it.prof,T.prof),dEo:it.eo-T.eo,dC:it.cents-T.cents});return '<br><span class="muted">목표와: '+(ds.length?ds.map(s=>s.replace(/ \(.*\)/,'')).join(', '):'비슷함')+'</span>'}
+function renderTakes(){const el=$('takes');el.innerHTML='';if(!takes.length){el.innerHTML='<p class="empty">마이크를 켜고 한 음을 1초 이상 불면 여기에 쌓입니다.</p>';return}
+  const T=target();
+  takes.forEach((it,i)=>{const d=document.createElement('div');d.className='item';
+    d.innerHTML=`<canvas></canvas><div class="meta"><b>${i===0?'방금 · ':''}${fmtTime(it.date)}</b><br><span class="muted">${statLine(it)}</span>${vsTarget(it)}</div><div class="acts"><button class="small" data-a="play">▶</button><button class="small" data-a="save">저장</button></div>`;
+    el.appendChild(d);thumb(d.querySelector('canvas'),it.prof,T&&Math.abs(it.cents-T.cents)<=70?T.prof:null);
+    d.querySelector('[data-a=play]').onclick=()=>play(it);d.querySelector('[data-a=save]').onclick=()=>saveTake(it)})}
+function renderAlbum(){const el=$('album');el.innerHTML='';if(!album.length){el.innerHTML='<p class="empty">마음에 든 소리를 저장하면 여기에 모입니다.</p>';updateTargetLine();return}
+  album.forEach(it=>{const d=document.createElement('div');d.className='item'+(it.id===targetId?' target':'');
+    d.innerHTML=`<canvas></canvas><div class="meta"><input value="${(it.name||'').replace(/"/g,'&quot;')}" placeholder="메모 (예: 리드 3번, 아침)" aria-label="메모"><span class="muted">${fmtTime(it.date)} · ${statLine(it)}</span></div><div class="acts"><button class="small" data-a="play">▶</button><button class="small" data-a="tgt">${it.id===targetId?'목표 해제':'목표로'}</button><button class="small" data-a="del">삭제</button></div>`;
+    el.appendChild(d);thumb(d.querySelector('canvas'),it.prof,null);
+    d.querySelector('input').onchange=e=>{it.name=e.target.value;dbPut(it)};
+    d.querySelector('[data-a=play]').onclick=()=>play(it);
+    d.querySelector('[data-a=tgt]').onclick=()=>{targetId=targetId===it.id?null:it.id;try{localStorage.setItem('toneAlbumTarget',targetId||'')}catch(e){}renderAlbum();renderTakes()};
+    d.querySelector('[data-a=del]').onclick=()=>{if(d.dataset.confirm){album=album.filter(a=>a.id!==it.id);dbDel(it.id);if(targetId===it.id)targetId=null;renderAlbum();renderTakes()}else{d.dataset.confirm=1;d.querySelector('[data-a=del]').textContent='한 번 더 누르면 삭제'}}});
+  updateTargetLine()}
+function updateTargetLine(){const T=target();$('targetLine').textContent=T?'목표: '+(T.name||fmtTime(T.date))+' · '+T.note+' (기보 '+written(T.cents)+')':'목표 소리 없음 · 앨범에서 "목표로"를 누르세요';if(!T)$('diffs').innerHTML='<span class="sub">앨범에서 목표 소리를 고르면 무엇이 다른지 알려 줍니다.</span>'}
+function toItem(it,name){const pcm=new Int16Array(it.pcm.length);for(let i=0;i<pcm.length;i++)pcm[i]=Math.max(-32768,Math.min(32767,Math.round(it.pcm[i]*32767)));
+  return{id:'a'+Date.now()+Math.floor(Math.random()*1e4),name:name||'',date:it.date||new Date(),sr:it.sr,pcm,note:it.note,cents:it.cents,prof:it.prof,eo:it.eo,wob:it.wob,attack:it.attack,dur:it.dur}}
+function saveTake(it){if(it.saved){say('이미 저장한 소리입니다.');return}it.saved=true;const a=toItem(it);album.unshift(a);dbPut(a);renderAlbum();say(it.note+' 소리를 앨범에 저장했습니다.')}
+$('bSaveLast').onclick=()=>{if(takes[0])saveTake(takes[0])};
+
+/* ---------- playback ---------- */
+let playing=null;
+async function play(it){
+  ctx=ctx||new (window.AudioContext||window.webkitAudioContext)();await ctx.resume();
+  if(playing){try{playing.stop()}catch(e){}playing=null}
+  const n=it.pcm.length,b=ctx.createBuffer(1,n,it.sr),ch=b.getChannelData(0);
+  if(it.pcm instanceof Int16Array){for(let i=0;i<n;i++)ch[i]=it.pcm[i]/32768}else ch.set(it.pcm);
+  const s=ctx.createBufferSource();s.buffer=b;s.connect(ctx.destination);s.start();playing=s;s.onended=()=>{if(playing===s)playing=null};
+}
+
+/* ---------- import files ---------- */
+$('fImport').addEventListener('change',async e=>{
+  const files=[...e.target.files];e.target.value='';if(!files.length)return;say('파일을 분석하는 중…');let ok=0;
+  for(const f of files){try{
+    const buf=await f.arrayBuffer();const Ctx=window.OfflineAudioContext||window.webkitOfflineAudioContext;const oc=new Ctx(1,44100,44100);const ab=await oc.decodeAudioData(buf);
+    const x=ab.getChannelData(0),rate=ab.sampleRate;let mx=-200;const fs=[];
+    for(let s=0;s+N<=x.length;s+=1024){let e2=0;for(let i=0;i<N;i++)e2+=x[s+i]*x[s+i];mx=Math.max(mx,10*Math.log10(e2/N+1e-12))}
+    for(let s=0;s+N<=x.length;s+=1024){const fr=analyzeFrame(x.subarray(s,s+N),s/rate,rate,mx-30);if(fr.f0)fs.push(fr)}
+    if(fs.length<10){say(f.name+': 음을 찾지 못했습니다.');continue}
+    const med=avg(fs.map(f=>f.cents));const one=fs.filter(f=>Math.abs(f.cents-med)<70);
+    const sum=summarize(one,one[0].t);
+    const it=toItem({pcm:x.length>rate*20?x.subarray(0,rate*20):x,sr:rate,date:new Date(f.lastModified||Date.now()),...sum},f.name.replace(/\.[^.]+$/,''));
+    album.unshift(it);dbPut(it);ok++}catch(err){say(f.name+': 이 파일은 열 수 없습니다. mp3, m4a, wav를 써 주세요.')}}
+  if(ok)say(ok+'개 파일을 앨범에 추가했습니다.');renderAlbum();renderTakes()});
+
+$('bMic').addEventListener('click',start);
+window.addEventListener('resize',()=>{renderTakes();renderAlbum();draw(total/(sr||1))});
+(async()=>{hann=makeHann();await openDB();album=(await dbAll()).sort((a,b)=>new Date(b.date)-new Date(a.date));try{targetId=localStorage.getItem('toneAlbumTarget')||null}catch(e){}if(!album.find(a=>a.id===targetId))targetId=null;renderAlbum();renderTakes();draw(0)})();
+})();
+</script>
+</body>
+</html>
