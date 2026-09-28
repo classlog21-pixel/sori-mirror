@@ -55,10 +55,12 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--core);outline-o
 
   <div class="bar">
     <button id="bMic" class="primary" type="button">마이크 켜기</button>
+    <button id="bPad" type="button" aria-pressed="false">-10dB 패드 꺼짐</button>
     <button id="bSaveLast" type="button" disabled>방금 소리 저장</button>
     <span class="filebtn"><button type="button" tabindex="-1">녹음 파일로 추가</button><input id="fImport" type="file" accept="audio/*" multiple aria-label="녹음 파일로 추가"></span>
     <span class="msg" id="msg"></span>
   </div>
+  <p class="sub" id="micInfo">마이크를 켜면 브라우저가 적용한 음성 처리 상태가 여기에 표시됩니다.</p>
 
   <div class="grid">
     <div class="panel">
@@ -100,6 +102,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--core);outline-o
     <b>사용법</b>
     <ol>
       <li>마이크를 켜고 평소처럼 부세요. 한 음을 불고 멈출 때마다 "방금 분 소리"에 하나씩 자동으로 쌓입니다. 연습을 마치면 "마이크 끄기"를 누르세요. 꺼져 있는 동안에는 아무것도 기록되지 않습니다.</li>
+      <li>음량 옆에 "입력 넘침"이 뜨면 소리가 마이크 한계를 넘은 것입니다. 폰을 악기에서 조금 떼어 놓으세요. "-10dB 패드"는 분석과 녹음 음량을 10dB 낮춰 줍니다. 다만 마이크 자체에서 이미 넘친 소리는 되살리지 못합니다.</li>
       <li>마음에 든 소리가 나왔다면 "방금 소리 저장"을 누르거나, 목록에서 ▶로 들어 보고 골라 "저장"을 누르세요.</li>
       <li>앨범에서 "목표로"를 누르면, 그 소리를 기준으로 지금 소리와의 차이를 보여 줍니다. "▶"로 목표 소리를 먼저 듣고 따라 불어 보세요.</li>
       <li>선생님이나 좋은 연주의 녹음 파일도 "녹음 파일로 추가"로 앨범에 넣을 수 있습니다. 마이크가 다르면 모양이 조금 달라 보일 수 있으니, 완전히 겹치기보다 같은 방향으로 움직이는지를 보세요.</li>
@@ -157,23 +160,34 @@ function dbPut(it){try{if(db)db.transaction('album','readwrite').objectStore('al
 function dbDel(id){try{if(db)db.transaction('album','readwrite').objectStore('album').delete(id)}catch(e){}}
 
 /* ---------- mic + ring buffer ---------- */
-let mic=null; // {stream,src,sp,mute}
+let mic=null; // {stream,src,pad,sp,mute}
+let padOn=false,lastClip=-9;try{padOn=localStorage.getItem('toneAlbumPad')==='1'}catch(e){}
+const PAD=Math.pow(10,-10/20); // -10 dB
+function padGain(){return padOn?PAD:1}
+function renderPad(){$('bPad').textContent='-10dB 패드 '+(padOn?'켜짐':'꺼짐');$('bPad').setAttribute('aria-pressed',padOn)}
+function showProcessing(tr){ // 브라우저가 실제로 적용한 음성 처리 표시
+  const s=tr.getSettings?tr.getSettings():{};const f=v=>v===true?'켜짐':v===false?'꺼짐':'알 수 없음';
+  const on=[s.autoGainControl,s.noiseSuppression,s.echoCancellation,s.voiceIsolation].some(v=>v===true);
+  $('micInfo').textContent='자동 음량 '+f(s.autoGainControl)+' · 잡음 제거 '+f(s.noiseSuppression)+' · 에코 제거 '+f(s.echoCancellation)+(s.voiceIsolation!==undefined?' · 음성 분리 '+f(s.voiceIsolation):'')+(on?' — 이 브라우저가 일부 처리를 끄지 못하게 합니다. 크롬으로 열어 보세요.':'');
+}
 async function start(){
   $('bMic').disabled=true;
   try{
-    const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+    const off={echoCancellation:false,noiseSuppression:false,autoGainControl:false,voiceIsolation:false};
+    const stream=await navigator.mediaDevices.getUserMedia({audio:{...off,channelCount:1,googEchoCancellation:false,googAutoGainControl:false,googNoiseSuppression:false,googHighpassFilter:false}});
+    const tr=stream.getAudioTracks()[0];try{await tr.applyConstraints(off)}catch(e){}showProcessing(tr);
     ctx=ctx||new (window.AudioContext||window.webkitAudioContext)();await ctx.resume();sr=ctx.sampleRate;
-    ring=new Float32Array(sr*RING_S);wpos=0;total=0;lastAnalyzed=0;frames=[];seg=null;
-    const src=ctx.createMediaStreamSource(stream);const sp=ctx.createScriptProcessor(2048,1,1);const mute=ctx.createGain();mute.gain.value=0;
-    sp.onaudioprocess=e=>{if(!running)return;const d=e.inputBuffer.getChannelData(0);for(let i=0;i<d.length;i++){ring[wpos]=d[i];wpos=(wpos+1)%ring.length}total+=d.length};
-    src.connect(sp);sp.connect(mute);mute.connect(ctx.destination);mic={stream,src,sp,mute};
+    ring=new Float32Array(sr*RING_S);wpos=0;total=0;lastAnalyzed=0;frames=[];seg=null;lastClip=-9;
+    const src=ctx.createMediaStreamSource(stream);const pad=ctx.createGain();pad.gain.value=padGain();const sp=ctx.createScriptProcessor(2048,1,1);const mute=ctx.createGain();mute.gain.value=0;
+    sp.onaudioprocess=e=>{if(!running)return;const d=e.inputBuffer.getChannelData(0);let pk=0;for(let i=0;i<d.length;i++){const v=d[i];ring[wpos]=v;wpos=(wpos+1)%ring.length;if(v>pk)pk=v;else if(-v>pk)pk=-v}total+=d.length;if(pk>=0.98*pad.gain.value)lastClip=total/sr};
+    src.connect(pad);pad.connect(sp);sp.connect(mute);mute.connect(ctx.destination);mic={stream,src,pad,sp,mute};
     running=true;$('bMic').textContent='마이크 끄기';$('bMic').classList.remove('primary');say('');tick();
   }catch(e){say('마이크를 켤 수 없습니다. 주소창 옆에서 마이크 권한을 허용해 주세요. (크롬 권장)')}
   $('bMic').disabled=false;
 }
 function stop(){
   running=false;seg=null;frames=[];smooth=null;cur=null; // 불던 중인 음은 기록하지 않음
-  if(mic){mic.sp.onaudioprocess=null;try{mic.src.disconnect();mic.sp.disconnect();mic.mute.disconnect()}catch(e){}mic.stream.getTracks().forEach(t=>t.stop());mic=null}
+  if(mic){mic.sp.onaudioprocess=null;try{mic.src.disconnect();mic.pad.disconnect();mic.sp.disconnect();mic.mute.disconnect()}catch(e){}mic.stream.getTracks().forEach(t=>t.stop());mic=null}
   $('bMic').textContent='마이크 켜기';$('bMic').classList.add('primary');
   $('note').textContent='–';['rShape','rEo','rPitch','rWob','rLvl'].forEach(id=>$(id).textContent='–');updateTargetLine();
   say('마이크를 껐습니다. 소리 기록도 멈췄습니다.');draw(0);
@@ -207,7 +221,7 @@ function tick(){
   while(total-lastAnalyzed>=hop&&total>=N){
     lastAnalyzed=total-lastAnalyzed>sr?total:lastAnalyzed+hop;
     const x=readRing(lastAnalyzed,N);const t=lastAnalyzed/sr;
-    const fr=analyzeFrame(x,t,sr,-55);frames.push(fr);onFrame(fr,lastAnalyzed);
+    const fr=analyzeFrame(x,t,sr,padOn?-65:-55);frames.push(fr);onFrame(fr,lastAnalyzed);
   }
   const now=total/sr;while(frames.length&&frames[0].t<now-WIN_S)frames.shift();
   if(frames.length)update(frames[frames.length-1],now);draw(now);
@@ -220,7 +234,7 @@ function describe(d){ // d: {sh,dEo,dC}
   if(Math.abs(d.dC)>8)out.push(d.dC>0?'음정이 조금 높습니다 (+'+Math.round(d.dC)+' cents)':'음정이 조금 낮습니다 ('+Math.round(d.dC)+' cents)');
   return out}
 function update(fr,now){
-  $('rLvl').textContent=fr.db>-100?Math.round(fr.db)+' dB':'–';
+  $('rLvl').textContent=(fr.db>-100?Math.round(fr.db)+' dB':'–')+(padOn?' (패드 -10)':'')+(now-lastClip<1?' · 입력 넘침':'');
   const recent=frames.filter(f=>f.f0&&f.t>now-0.6);
   if(recent.length<3){$('note').textContent='–';smooth=null;cur=null;return}
   const cents=avg(recent.map(f=>f.cents));smooth=meanProf(recent);const eo=avg(recent.map(f=>f.eo));
@@ -322,6 +336,8 @@ $('fImport').addEventListener('change',async e=>{
   if(ok)say(ok+'개 파일을 앨범에 추가했습니다.');renderAlbum();renderTakes()});
 
 $('bMic').addEventListener('click',()=>running?stop():start());
+$('bPad').addEventListener('click',()=>{padOn=!padOn;try{localStorage.setItem('toneAlbumPad',padOn?'1':'0')}catch(e){}if(mic)mic.pad.gain.value=padGain();renderPad()});
+renderPad();
 window.addEventListener('resize',()=>{renderTakes();renderAlbum();draw(total/(sr||1))});
 (async()=>{hann=makeHann();await openDB();album=(await dbAll()).sort((a,b)=>new Date(b.date)-new Date(a.date));try{targetId=localStorage.getItem('toneAlbumTarget')||null}catch(e){}if(!album.find(a=>a.id===targetId))targetId=null;renderAlbum();renderTakes();draw(0)})();
 })();
