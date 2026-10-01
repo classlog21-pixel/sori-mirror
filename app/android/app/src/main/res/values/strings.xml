@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">SORI MIRROR</string>
+    <string name="title_activity_main">SORI MIRROR</string>
+    <string name="package_name">com.classlog.sorimirror</string>
+    <string name="custom_url_scheme">com.classlog.sorimirror</string>
+</resources>

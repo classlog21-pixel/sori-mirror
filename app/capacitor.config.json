@@ -1,0 +1,15 @@
+{
+  "appId": "com.classlog.sorimirror",
+  "appName": "SORI MIRROR",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#04060b"
+  },
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "native",
+      "initialViewportFitValueHint": "cover",
+      "style": "DARK"
+    }
+  }
+}
