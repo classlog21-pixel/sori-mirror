@@ -67,6 +67,17 @@
   importDone:'Added {n} file(s) to the album.',
   instChanged:'Transposition: {k}',
 
+  growthAria:'Growth log', growthSub:'Practice log · PRO',
+  gMinT:'Sound time', gWobT:'Pitch wobble', gRateT:'Target match',
+  gTilesNote:'Big numbers are this month, small text is last month. Each note you hold and release is logged.',
+  gMinChart:'Daily sound time · last 30 days', gWobChart:'Daily average pitch wobble (lower = steadier)', gRateChart:'Daily target match (on the target note)',
+  gMinV:'{v} min', gLast:'Last month {v}', gTapHint:'Tap a bar for value', gNoData:'no data',
+  growthCount:'{n} entries · stored on this device only',
+  logClear:'Clear log', logCleared:'Practice log cleared.',
+  lockTitle:'The growth graph is a PRO feature',
+  lockBody:'See your practice by date and compare this month with last month. Your log is already being saved on this device.',
+  unlockTest:'TEST: unlock', relockTest:'TEST: lock again',
+
   helpSummary:'HOW TO',
   helpStepsTitle:'Steps',
   helpSteps:[
@@ -76,7 +87,8 @@
     'Press "Set target" in the album: the pink dashed line is the target and the blue line is your current tone. Try to make the two lines overlap.',
     'If "input clipping" appears next to Level and the level bar turns pink, the sound is too loud for the mic. Move the phone a little away from the instrument. -10dB PAD lowers analysis and recording level by 10 dB, but it cannot recover sound that already clipped in the mic.',
     'You can also add a teacher\'s or a reference recording with FILE. A different mic will make the shape look a bit different.',
-    'Play from the same spot and distance each time. Recordings stay on this device and are never sent anywhere.'
+    'Play from the same spot and distance each time. Recordings stay on this device and are never sent anywhere.',
+    'GROWTH (PRO) logs each note you hold and release, by date. Compare sound time, pitch wobble and target match (the same limits that turn STATUS green) between this month and last month, and see the last 30 days as graphs. Only numbers are stored on this device, not the audio.'
   ],
   helpScreenTitle:'Reading the screen',
   helpScreen:[

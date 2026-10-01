@@ -149,6 +149,24 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 .lvl.hot i{background:var(--ref);box-shadow:0 0 12px var(--ref)}
 details.help{font-size:.86rem;color:var(--muted)}
 details.help summary{cursor:pointer;color:var(--core);font-family:var(--hud);font-size:.68rem;letter-spacing:.2em}
+/* growth (PRO) */
+.growth{overflow:hidden}
+.gbody{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+.growth.locked .gbody{filter:blur(5px);opacity:.45;pointer-events:none;user-select:none}
+.gtiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.gtiles .tile b{font-size:1.15rem}
+.gtiles .tile small:last-child{font-family:var(--mono)}
+.gchart .gh{display:flex;justify-content:space-between;gap:8px;font-size:.76rem;color:var(--muted)}
+.gchart .gh b{font-family:var(--mono);font-weight:400;color:#fff;white-space:nowrap}
+.gchart .gh b.hint{color:var(--muted);font-family:var(--sans)}
+.gchart canvas{width:100%;height:110px;display:block;touch-action:pan-y;cursor:crosshair}
+.gfoot{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+.glock{position:absolute;inset:36px 12px 12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;padding:16px}
+.glock[hidden]{display:none}
+.glock .pro{font-family:var(--hud);font-weight:900;letter-spacing:.3em;color:var(--warm);border:1px solid var(--warm);padding:4px 12px;box-shadow:0 0 14px rgba(255,228,92,.35)}
+.glock p{max-width:420px}
+.glock .ttl{color:#fff;font-weight:700}
+#bUnlock,#bRelock{border-style:dashed;color:var(--warm);border-color:var(--warm)}
 details.help ol,details.help ul{margin:8px 0 0;padding-left:1.2em;display:flex;flex-direction:column;gap:4px}
 details.help h2{font-family:var(--hud);font-size:.62rem;letter-spacing:.2em;color:var(--core);margin:14px 0 0;font-weight:700}
 details.help b{color:var(--ink)}
@@ -211,6 +229,28 @@ details.help b{color:var(--ink)}
       <div class="list" id="album"></div>
     </section>
   </div>
+
+  <section class="frame growth" id="growth" data-i18n-aria="growthAria" aria-label="성장 기록">
+    <div class="label">GROWTH<span data-i18n="growthSub">성장 기록 · PRO</span></div>
+    <div class="gbody" id="gbody">
+      <div class="gtiles">
+        <div class="tile"><small data-i18n="gMinT">소리 낸 시간</small><b id="gMinNow">–</b><small id="gMinLast"></small></div>
+        <div class="tile"><small data-i18n="gWobT">음정 흔들림</small><b id="gWobNow">–</b><small id="gWobLast"></small></div>
+        <div class="tile"><small data-i18n="gRateT">목표 일치율</small><b id="gRateNow">–</b><small id="gRateLast"></small></div>
+      </div>
+      <p class="sub" data-i18n="gTilesNote">큰 숫자는 이번 달, 작은 글씨는 지난달이에요.</p>
+      <div class="gchart"><div class="gh"><span data-i18n="gMinChart">하루 소리 낸 시간 (분) · 최근 30일</span><b id="gMinR"></b></div><canvas id="gMin" data-i18n-aria="gMinChart" aria-label="하루 소리 낸 시간"></canvas></div>
+      <div class="gchart"><div class="gh"><span data-i18n="gWobChart">하루 평균 음정 흔들림 (±cents, 낮을수록 일정)</span><b id="gWobR"></b></div><canvas id="gWob" data-i18n-aria="gWobChart" aria-label="하루 평균 음정 흔들림"></canvas></div>
+      <div class="gchart"><div class="gh"><span data-i18n="gRateChart">하루 목표 일치율 (%)</span><b id="gRateR"></b></div><canvas id="gRate" data-i18n-aria="gRateChart" aria-label="하루 목표 일치율"></canvas></div>
+      <div class="gfoot"><span class="sub" id="growthCount"></span><span><button class="small" id="bRelock" type="button" hidden data-i18n="relockTest">테스트: 다시 잠그기</button> <button class="small" id="bLogClear" type="button" data-i18n="logClear">기록 지우기</button></span></div>
+    </div>
+    <div class="glock" id="growthLock">
+      <span class="pro">PRO</span>
+      <p class="ttl" data-i18n="lockTitle">성장 그래프는 PRO 기능이에요</p>
+      <p class="sub" data-i18n="lockBody">날짜별 연습 기록과 이번 달·지난달 비교를 볼 수 있어요. 기록은 지금도 이 기기에 쌓이고 있어요.</p>
+      <button id="bUnlock" type="button" data-i18n="unlockTest">테스트: 잠금 해제</button>
+    </div>
+  </section>
 
   <details class="help">
     <summary data-i18n="helpSummary">HOW TO · 사용법</summary>
@@ -303,10 +343,12 @@ function summarize(vf,t0){ // vf: voiced frames of one note
 
 /* ---------- storage (IndexedDB) ---------- */
 let db=null;
-function openDB(){return new Promise(res=>{try{const r=indexedDB.open('toneAlbum',1);r.onupgradeneeded=()=>r.result.createObjectStore('album',{keyPath:'id'});r.onsuccess=()=>{db=r.result;res()};r.onerror=()=>res()}catch(e){res()}})}
-function dbAll(){return new Promise(res=>{if(!db)return res([]);try{const q=db.transaction('album').objectStore('album').getAll();q.onsuccess=()=>res(q.result||[]);q.onerror=()=>res([])}catch(e){res([])}})}
+function openDB(){return new Promise(res=>{try{const r=indexedDB.open('toneAlbum',2);r.onupgradeneeded=()=>{const d=r.result;if(!d.objectStoreNames.contains('album'))d.createObjectStore('album',{keyPath:'id'});if(!d.objectStoreNames.contains('log'))d.createObjectStore('log',{keyPath:'id'})};r.onsuccess=()=>{db=r.result;res()};r.onerror=()=>res()}catch(e){res()}})}
+function dbAll(st='album'){return new Promise(res=>{if(!db)return res([]);try{const q=db.transaction(st).objectStore(st).getAll();q.onsuccess=()=>res(q.result||[]);q.onerror=()=>res([])}catch(e){res([])}})}
 function dbPut(it){try{if(db)db.transaction('album','readwrite').objectStore('album').put(it)}catch(e){}}
 function dbDel(id){try{if(db)db.transaction('album','readwrite').objectStore('album').delete(id)}catch(e){}}
+function dbPutLog(e){try{if(db)db.transaction('log','readwrite').objectStore('log').put(e)}catch(err){}}
+function dbClearLog(){try{if(db)db.transaction('log','readwrite').objectStore('log').clear()}catch(e){}}
 
 /* ---------- mic + ring buffer ---------- */
 let mic=null; // {stream,src,pad,sp,mute}
@@ -362,7 +404,7 @@ function closeSeg(endTotal){
   const len=Math.min(ring.length,Math.round((endTotal-s.startTotal)+0.15*sr));
   const pcm=readRing(endTotal+Math.round(0.1*sr)>total?total:endTotal+Math.round(0.1*sr),len);
   const sum=summarize(s.frames,s.t0);
-  takes.unshift({id:'t'+Date.now(),date:new Date(),sr,pcm,...sum});takes=takes.slice(0,12);
+  takes.unshift({id:'t'+Date.now(),date:new Date(),sr,pcm,...sum});takes=takes.slice(0,12);logTake(sum);
   $('bSaveLast').disabled=false;renderTakes();
 }
 
@@ -502,8 +544,52 @@ $('bPad').addEventListener('click',()=>{padOn=!padOn;try{localStorage.setItem('t
 renderPad();
 INSTS.forEach(i=>{const o=document.createElement('option');o.value=i.id;o.textContent=i.label;$('selInst').appendChild(o)});$('selInst').value=inst.id;$('noteW').textContent=noteW(null);
 $('selInst').addEventListener('change',e=>{inst=INSTS.find(i=>i.id===e.target.value)||inst;try{localStorage.setItem('toneAlbumInst',inst.id)}catch(err){}seg=null;if(!cur)$('noteW').textContent=noteW(null);renderAlbum();renderTakes();say(t('instChanged',{k:inst.label}))});
-window.addEventListener('resize',()=>{renderTakes();renderAlbum();draw(total/(sr||1))});
-(async()=>{hann=makeHann();await openDB();album=(await dbAll()).sort((a,b)=>new Date(b.date)-new Date(a.date));try{targetId=localStorage.getItem('toneAlbumTarget')||null}catch(e){}if(!album.find(a=>a.id===targetId))targetId=null;renderAlbum();renderTakes();clearMeters();steps();draw(0)})();
+/* ---------- practice log + growth (PRO) ---------- */
+// 음을 하나 불고 멈출 때마다 기록(소리 없이 숫자만)을 이 기기에 남김. 무료 사용자도 기록은 쌓이고, 그래프만 잠김
+const PRO_TEST_TOGGLE=true; // 결제 연결 전 시험용 잠금 해제 버튼. 결제를 붙이면 false로
+function isPro(){try{return localStorage.getItem('soriPro')==='1'}catch(e){return false}}
+function setPro(v){try{localStorage.setItem('soriPro',v?'1':'0')}catch(e){}renderGrowth()}
+let logs=[];const charts={};
+function dayKey(d){d=new Date(d);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function logTake(it){const T=target();let tgt=false,match=null;
+  if(T&&Math.abs(it.cents-T.cents)<=70){tgt=true;const sh=shapeDiff(it.prof,T.prof),dEo=it.eo-T.eo,dC=it.cents-T.cents;match=Math.abs(dC)<=8&&Math.abs(dEo)<=2&&!isNaN(sh)&&sh<=3} // STATUS 초록과 같은 기준
+  const e={id:'l'+Date.now()+Math.floor(Math.random()*1e4),ts:Date.now(),day:dayKey(Date.now()),note:it.note,cents:it.cents,wob:it.wob,attack:it.attack,dur:it.dur,tgt,match};
+  logs.push(e);dbPutLog(e);renderGrowth()}
+function agg(list){let dur=0,w=0,tn=0,tm=0;list.forEach(e=>{dur+=e.dur;w+=e.wob*e.dur;if(e.tgt){tn++;if(e.match)tm++}});return{n:list.length,min:dur/60,wob:dur?w/dur:NaN,rate:tn?tm/tn*100:NaN}}
+const gFmt={min:v=>t('gMinV',{v:v<10?v.toFixed(1):Math.round(v)}),wob:v=>'±'+v.toFixed(1)+'c',rate:v=>Math.round(v)+'%'};
+function fmtDay(k){const[,m,d]=k.split('-');return(+m)+'/'+(+d)}
+function renderGrowth(){
+  const pro=isPro();$('growth').classList.toggle('locked',!pro);$('growthLock').hidden=pro;$('bUnlock').hidden=!PRO_TEST_TOGGLE;$('bRelock').hidden=!(pro&&PRO_TEST_TOGGLE);
+  const now=new Date(),mThis=dayKey(now).slice(0,7),mLast=dayKey(new Date(now.getFullYear(),now.getMonth()-1,1)).slice(0,7);
+  const a=agg(logs.filter(e=>e.day.startsWith(mThis))),b=agg(logs.filter(e=>e.day.startsWith(mLast)));
+  [['min','gMin'],['wob','gWob'],['rate','gRate']].forEach(([k,id])=>{const f=gFmt[k];$(id+'Now').textContent=a.n&&!isNaN(a[k])?f(a[k]):'–';$(id+'Last').textContent=t('gLast',{v:b.n&&!isNaN(b[k])?f(b[k]):'–'})});
+  const days=[];for(let i=29;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth(),now.getDate()-i);days.push(dayKey(d))}
+  const per=days.map(k=>{const l=logs.filter(e=>e.day===k);return l.length?agg(l):null});
+  charts.gMin={days,vals:per.map(p=>p?p.min:NaN),fmt:gFmt.min,max:null,hi:-1};
+  charts.gWob={days,vals:per.map(p=>p?p.wob:NaN),fmt:gFmt.wob,max:null,hi:-1};
+  charts.gRate={days,vals:per.map(p=>p?p.rate:NaN),fmt:gFmt.rate,max:100,hi:-1};
+  ['gMin','gWob','gRate'].forEach(id=>{$(id+'R').textContent=t('gTapHint');$(id+'R').classList.add('hint');drawBars(id)});
+  $('growthCount').textContent=t('growthCount',{n:logs.length});
+}
+function niceMax(v){if(!(v>0))return 1;const p=Math.pow(10,Math.floor(Math.log10(v))),m=v/p;return(m<=1?1:m<=2?2:m<=5?5:10)*p}
+function drawBars(id){const g=charts[id];if(!g)return;const[c,w,h]=setup($(id),110);c.clearRect(0,0,w,h);
+  const L=2,R=w-2,T0=14,B=h-18,n=g.vals.length,slot=(R-L)/n,bw=Math.max(2,slot-2);
+  const max=g.max||niceMax(Math.max(0,...g.vals.filter(v=>!isNaN(v))));g.geo={L,slot};
+  c.strokeStyle=css('--grid');c.lineWidth=1;c.beginPath();c.moveTo(L,B+.5);c.lineTo(R,B+.5);c.stroke();c.setLineDash([3,4]);c.beginPath();c.moveTo(L,T0+.5);c.lineTo(R,T0+.5);c.stroke();c.setLineDash([]);
+  c.fillStyle=css('--muted');c.font='10px "Share Tech Mono",monospace';c.textAlign='left';c.fillText(g.fmt(max),L,T0-3);
+  g.vals.forEach((v,i)=>{if(isNaN(v))return;const x=L+i*slot+(slot-bw)/2,y=B-Math.max(v>0?2:1,(v/max)*(B-T0));
+    c.fillStyle=i===g.hi?'#fff':css('--core');c.globalAlpha=g.hi<0||i===g.hi?0.9:0.45;c.beginPath();if(c.roundRect)c.roundRect(x,y,bw,B-y,[Math.min(2,bw/2),Math.min(2,bw/2),0,0]);else c.rect(x,y,bw,B-y);c.fill()});c.globalAlpha=1;
+  c.fillStyle=css('--muted');c.textAlign='left';c.fillText(fmtDay(g.days[0]),L,h-4);c.textAlign='center';c.fillText(fmtDay(g.days[15]),L+15.5*slot,h-4);c.textAlign='right';c.fillText(t('traceNow'),R,h-4);
+}
+function pickBar(id,ev){const g=charts[id];if(!g||!g.geo)return;const r=$(id).getBoundingClientRect();let i=Math.floor((ev.clientX-r.left-g.geo.L)/g.geo.slot);i=Math.max(0,Math.min(g.vals.length-1,i));g.hi=i;const v=g.vals[i];
+  $(id+'R').classList.remove('hint');$(id+'R').textContent=fmtDay(g.days[i])+' · '+(isNaN(v)?t('gNoData'):g.fmt(v));drawBars(id)}
+['gMin','gWob','gRate'].forEach(id=>{const cv=$(id);cv.addEventListener('pointermove',e=>pickBar(id,e));cv.addEventListener('pointerdown',e=>pickBar(id,e));
+  cv.addEventListener('pointerleave',()=>{const g=charts[id];if(g&&g.hi>=0){g.hi=-1;$(id+'R').textContent=t('gTapHint');$(id+'R').classList.add('hint');drawBars(id)}})});
+$('bUnlock').addEventListener('click',()=>setPro(true));
+$('bRelock').addEventListener('click',()=>setPro(false));
+$('bLogClear').addEventListener('click',e=>{const b=e.currentTarget;if(b.dataset.confirm){logs=[];dbClearLog();delete b.dataset.confirm;b.textContent=t('logClear');renderGrowth();say(t('logCleared'))}else{b.dataset.confirm=1;b.textContent=t('btnDeleteConfirm')}});
+window.addEventListener('resize',()=>{renderTakes();renderAlbum();draw(total/(sr||1));['gMin','gWob','gRate'].forEach(drawBars)});
+(async()=>{hann=makeHann();await openDB();album=(await dbAll()).sort((a,b)=>new Date(b.date)-new Date(a.date));logs=(await dbAll('log')).sort((a,b)=>a.ts-b.ts);renderGrowth();try{targetId=localStorage.getItem('toneAlbumTarget')||null}catch(e){}if(!album.find(a=>a.id===targetId))targetId=null;renderAlbum();renderTakes();clearMeters();steps();draw(0)})();
 })();
 </script>
 </body>
