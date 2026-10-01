@@ -214,6 +214,23 @@ main{gap:8px}
   .tile b{font-size:.8rem;white-space:nowrap}
   .lvl{flex:1;margin-top:0;min-width:16px}
   #targetLine{max-width:32%;font-size:.66rem}
+  /* 원 칸을 화면 폭에 꽉 채우고, 나머지 칸을 줄여 한 화면에 맞춤 */
+  body{padding-top:calc(8px + env(safe-area-inset-top,0px));padding-left:10px;padding-right:10px}
+  main{gap:6px}.tab{gap:6px}
+  .hudbar{font-size:.6rem}
+  .tabs button{min-height:32px;font-size:.62rem}
+  .setup select,.setup button{min-height:34px;padding:4px 6px;font-size:.74rem}
+  #statusFrame{padding:6px 8px}
+  .label{font-size:.56rem}
+  .diffs{margin-top:2px}.diffs span{font-size:.8rem;padding:2px 6px}.diffs .same{font-size:.9rem}.diffs .sub{font-size:.7rem}
+  .meters{gap:5px;margin-top:4px}
+  .meter{font-size:.68rem}
+  .track{height:8px}.track .mk{height:14px;top:-4px}
+  .tiles{margin-top:5px;gap:5px}
+  #bSaveLast{width:58px;height:58px;font-size:.7rem}
+  .bar #bMic,.bar .filebtn button{min-height:40px}
+  .dock{padding:2px 10px 6px}.dock-inner{gap:2px}
+  .msg{font-size:.74rem}
 }
 </style>
 </head>
@@ -659,7 +676,8 @@ function showTab(n){if(n!=='log')n='play';$('tabPlay').hidden=n!=='play';$('tabL
 function fitScope(){const sc=$('scope');if($('tabPlay').hidden)return;const wide=matchMedia('(min-width:900px)').matches;$('traceFrame').hidden=false;
   const colW=sc.parentElement.clientWidth;
   const calc=()=>{const top=sc.getBoundingClientRect().top+window.scrollY,limit=$('dock').getBoundingClientRect().top,below=wide?0:$('side').offsetHeight+8;return Math.floor(Math.min(colW,limit-top-below-8))};
-  let S=calc();if(!wide&&S<260){$('traceFrame').hidden=true;S=calc()}
+  let S=calc();if(!wide&&S<colW){$('traceFrame').hidden=true;S=calc()} // 폰에서는 음정 흐름보다 원 크기를 먼저
+  if(!wide)S=colW; // 폰에서는 원 칸을 항상 화면 폭에 꽉 채움
   sc.style.setProperty('--sq',Math.max(220,Math.min(colW,S))+'px')}
 A4S.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent='A4 = '+v+' Hz';$('selA4').appendChild(o)});$('selA4').value=a4;
 $('selA4').addEventListener('change',e=>{a4=+e.target.value;AOFF=1200*Math.log2(a4/440);try{localStorage.setItem('soriA4',a4)}catch(err){}renderAlbum();renderTakes();updateTargetLine();say(t('a4Changed',{v:a4}))});
