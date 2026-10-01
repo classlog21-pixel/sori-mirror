@@ -170,6 +170,8 @@ details.help summary{cursor:pointer;color:var(--core);font-family:var(--hud);fon
 details.help ol,details.help ul{margin:8px 0 0;padding-left:1.2em;display:flex;flex-direction:column;gap:4px}
 details.help h2{font-family:var(--hud);font-size:.62rem;letter-spacing:.2em;color:var(--core);margin:14px 0 0;font-weight:700}
 details.help b{color:var(--ink)}
+details.help .steps{margin-top:8px}
+#micInfo{margin-top:6px}
 /* tabs + one-screen play view */
 main{gap:8px}
 @media (max-width:899px){h1{display:none}}
@@ -281,15 +283,22 @@ main{gap:8px}
     </div>
   </div>
 
+  <p class="sub" id="micInfo" data-i18n="micInfoIdle">MIC ON을 누르면 브라우저가 적용한 음성 처리 상태가 여기에 떠요.</p>
+  <details class="help">
+    <summary data-i18n="helpSummary">HOW TO · 사용법</summary>
+    <div class="steps" data-i18n-aria="stepsAria" aria-label="순서">
+      <div class="step" id="st1"><b>STEP 01</b><span data-i18n="step1">MIC ON 누르기</span></div>
+      <div class="step" id="st2"><b>STEP 02</b><span data-i18n="step2">불고 좋은 소리 SAVE</span></div>
+      <div class="step" id="st3"><b>STEP 03</b><span data-i18n="step3">목표로 고르고 따라 불기</span></div>
+    </div>
+    <h2 data-i18n="helpStepsTitle">사용 순서</h2>
+    <ol id="helpSteps"></ol>
+    <h2 data-i18n="helpScreenTitle">화면 보는 법</h2>
+    <ul id="helpScreen"></ul>
+  </details>
   </div>
 
   <div class="tab" id="tabLog" role="tabpanel" hidden>
-  <div class="steps" data-i18n-aria="stepsAria" aria-label="순서">
-    <div class="step" id="st1"><b>STEP 01</b><span data-i18n="step1">MIC ON 누르기</span></div>
-    <div class="step" id="st2"><b>STEP 02</b><span data-i18n="step2">불고 좋은 소리 SAVE</span></div>
-    <div class="step" id="st3"><b>STEP 03</b><span data-i18n="step3">목표로 고르고 따라 불기</span></div>
-  </div>
-  <p class="sub" id="micInfo" data-i18n="micInfoIdle">MIC ON을 누르면 브라우저가 적용한 음성 처리 상태가 여기에 떠요.</p>
 
   <div class="lists">
     <section class="frame">
@@ -324,13 +333,6 @@ main{gap:8px}
     </div>
   </section>
 
-  <details class="help">
-    <summary data-i18n="helpSummary">HOW TO · 사용법</summary>
-    <h2 data-i18n="helpStepsTitle">사용 순서</h2>
-    <ol id="helpSteps"></ol>
-    <h2 data-i18n="helpScreenTitle">화면 보는 법</h2>
-    <ul id="helpScreen"></ul>
-  </details>
   </div>
 </main>
 
