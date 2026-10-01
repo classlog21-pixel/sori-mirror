@@ -170,26 +170,71 @@ details.help summary{cursor:pointer;color:var(--core);font-family:var(--hud);fon
 details.help ol,details.help ul{margin:8px 0 0;padding-left:1.2em;display:flex;flex-direction:column;gap:4px}
 details.help h2{font-family:var(--hud);font-size:.62rem;letter-spacing:.2em;color:var(--core);margin:14px 0 0;font-weight:700}
 details.help b{color:var(--ink)}
+/* tabs + one-screen play view */
+main{gap:8px}
+@media (max-width:899px){h1{display:none}}
+.tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.tabs button{font-family:var(--hud);font-size:.66rem;letter-spacing:.12em;min-height:38px;color:var(--muted)}
+.tabs button[aria-selected=true]{border-color:var(--core);color:var(--core);box-shadow:0 0 12px rgba(0,240,255,.3),inset 0 0 10px rgba(0,240,255,.12)}
+.tab{display:flex;flex-direction:column;gap:8px}
+.tab[hidden]{display:none}
+.setup{flex-wrap:nowrap;gap:6px}
+.setup select,.setup button{min-height:40px;padding:6px 8px;font-size:.8rem;min-width:0}
+#selInst{flex:1 1 0}
+#selA4{flex:1.4 1 0;font-family:var(--mono)}
+#bPad{flex:0 0 auto;font-size:.72rem}
+.scope{position:relative;padding:0;width:var(--sq,100%);max-width:100%;aspect-ratio:1;margin:0 auto}
+#polar{width:100%;height:100%;aspect-ratio:auto}
+.readout{position:absolute;top:6px;left:8px;right:8px;padding:0;align-items:flex-start;pointer-events:none;z-index:1}
+#note{font-size:2rem}
+#noteW{font-size:.8rem;margin-top:2px}
+#targetLine{max-width:40%;font-size:.7rem}
+.legend{position:absolute;left:8px;bottom:6px;flex-direction:column;gap:2px;padding:0;font-size:.68rem;pointer-events:none}
+#statusFrame,#traceFrame{padding:8px 10px}
+.diffs{margin-top:4px;gap:4px}
+.diffs span{font-size:.88rem;padding:3px 8px}
+.diffs .same{font-size:1rem}
+.diffs .sub{font-size:.76rem}
+.meters{gap:6px;margin-top:6px}
+.meter{grid-template-columns:64px 1fr 76px;font-size:.72rem}
+.track{height:10px}.track .mk{height:16px;top:-4px}
+.meter .ends{margin-top:-4px;font-size:.58rem}
+.tiles{margin-top:6px;gap:6px}
+.tile{padding:4px 8px}
+.tile b{font-size:.92rem}
+#timeline{height:64px}
+#traceFrame[hidden]{display:none}
+#bSaveLast{width:68px;height:68px;font-size:.78rem}
+.dock{padding-top:4px}
+@media (max-width:899px){
+  .meter .ends{display:none}
+  .meter{grid-template-columns:58px 1fr 66px}
+  .tile{flex-direction:row;align-items:center;gap:6px;padding:3px 8px}
+  .tile small{font-size:.64rem;white-space:nowrap}
+  .tile b{font-size:.8rem;white-space:nowrap}
+  .lvl{flex:1;margin-top:0;min-width:16px}
+  #targetLine{max-width:32%;font-size:.66rem}
+}
 </style>
 </head>
 <body>
 <main>
   <div class="hudbar"><span><b>SORI//MIRROR</b> · CLASSLOG</span><span class="led" id="led"><i></i>MIC OFF</span></div>
   <h1><span data-i18n="title" class="h1t">내 소리 앨범</span><span data-i18n="appTag">측정만 · 판정 없음</span></h1>
-  <div class="steps" data-i18n-aria="stepsAria" aria-label="순서">
-    <div class="step" id="st1"><b>STEP 01</b><span data-i18n="step1">MIC ON 누르기</span></div>
-    <div class="step" id="st2"><b>STEP 02</b><span data-i18n="step2">불고 좋은 소리 SAVE</span></div>
-    <div class="step" id="st3"><b>STEP 03</b><span data-i18n="step3">목표로 고르고 따라 불기</span></div>
-  </div>
+  <nav class="tabs" role="tablist">
+    <button type="button" role="tab" id="tbPlay" data-tab="play" aria-selected="true"><span data-i18n="tabPlay">연주</span></button>
+    <button type="button" role="tab" id="tbLog" data-tab="log" aria-selected="false"><span data-i18n="tabLog">앨범 · 기록</span></button>
+  </nav>
 
+  <div class="tab" id="tabPlay" role="tabpanel">
   <div class="setup">
     <select id="selInst" data-i18n-aria="instAria" aria-label="이조 키"></select>
+    <select id="selA4" data-i18n-aria="a4Aria" aria-label="기준음 A4"></select>
     <button id="bPad" type="button" aria-pressed="false">-10dB PAD OFF</button>
   </div>
-  <p class="sub" id="micInfo" data-i18n="micInfoIdle">MIC ON을 누르면 브라우저가 적용한 음성 처리 상태가 여기에 떠요.</p>
 
   <div class="layout">
-    <section class="frame scope" data-i18n-aria="scopeAria" aria-label="울림 모양">
+    <section class="frame scope" id="scope" data-i18n-aria="scopeAria" aria-label="울림 모양">
       <div class="readout">
         <div><p id="note">--</p><p id="noteW">기보 --</p></div>
         <p id="targetLine">목표 소리 없음</p>
@@ -198,7 +243,7 @@ details.help b{color:var(--ink)}
       <div class="legend"><span><i></i><span data-i18n="legendNow">지금 소리</span></span><span><i class="dash"></i><span data-i18n="legendTarget">목표 소리</span></span></div>
     </section>
 
-    <div class="side">
+    <div class="side" id="side">
       <section class="frame" id="statusFrame" data-i18n-aria="statusAria" aria-label="목표와 다른 점">
         <div class="label">STATUS<span data-i18n="statusSub">목표와 다른 점</span></div>
         <div class="diffs" id="diffs"></div>
@@ -212,12 +257,22 @@ details.help b{color:var(--ink)}
           <div class="tile"><small data-i18n="tileLevel">음량</small><b id="rLvl">–</b><div class="lvl" id="lvl"><i></i></div></div>
         </div>
       </section>
-      <section class="frame" data-i18n-aria="traceAria" aria-label="음정 흐름">
+      <section class="frame" id="traceFrame" data-i18n-aria="traceAria" aria-label="음정 흐름">
         <div class="label">PITCH TRACE<span data-i18n="traceSub">최근 10초 · 띠 ±10 cents</span></div>
         <canvas id="timeline" data-i18n-aria="traceCanvasAria" aria-label="음정 흐름 그래프"></canvas>
       </section>
     </div>
   </div>
+
+  </div>
+
+  <div class="tab" id="tabLog" role="tabpanel" hidden>
+  <div class="steps" data-i18n-aria="stepsAria" aria-label="순서">
+    <div class="step" id="st1"><b>STEP 01</b><span data-i18n="step1">MIC ON 누르기</span></div>
+    <div class="step" id="st2"><b>STEP 02</b><span data-i18n="step2">불고 좋은 소리 SAVE</span></div>
+    <div class="step" id="st3"><b>STEP 03</b><span data-i18n="step3">목표로 고르고 따라 불기</span></div>
+  </div>
+  <p class="sub" id="micInfo" data-i18n="micInfoIdle">MIC ON을 누르면 브라우저가 적용한 음성 처리 상태가 여기에 떠요.</p>
 
   <div class="lists">
     <section class="frame">
@@ -259,9 +314,10 @@ details.help b{color:var(--ink)}
     <h2 data-i18n="helpScreenTitle">화면 보는 법</h2>
     <ul id="helpScreen"></ul>
   </details>
+  </div>
 </main>
 
-<div class="dock">
+<div class="dock" id="dock">
   <div class="dock-inner">
     <span class="msg" id="msg"></span>
     <div class="bar">
@@ -301,7 +357,12 @@ let ctx,sr,ring,wpos=0,total=0,hann,running=false,lastAnalyzed=0;
 let frames=[],takes=[],album=[],targetId=null,cur=null,smooth=null;
 const $=id=>document.getElementById(id);
 const NAMES=['C','C#','D','Eb','E','F','F#','G','Ab','A','Bb','B'];
-function noteOf(c){const m=Math.round(69+c/100);return NAMES[(m%12+12)%12]+(Math.floor(m/12)-1)}
+// 내부 cents는 항상 440Hz 기준 절대값. A4 기준음은 음 이름과 평균율 차이를 보여 줄 때만 씀(저장된 목표 비교에는 영향 없음)
+const A4S=[415,430,432,435,436,437,438,439,440,441,442,443,444,445,446];
+let a4=440;try{const v=+localStorage.getItem('soriA4');if(A4S.includes(v))a4=v}catch(e){}
+let AOFF=1200*Math.log2(a4/440);
+function etDev(c){const x=c-AOFF;return x-Math.round(x/100)*100}
+function noteOf(c){const m=Math.round(69+(c-AOFF)/100);return NAMES[(m%12+12)%12]+(Math.floor(m/12)-1)}
 const FMIN=55,FMAX=2500; // 음정을 찾는 범위 (Hz)
 // trans: 실음 → 기보 (cents). 옥타브는 그 키의 대표 악기 기준 (B♭ 클라리넷, E♭ 알토 색소폰, F 호른)
 const INSTS=[{id:'c',label:'C',trans:0},{id:'bb',label:'B♭',trans:200},{id:'eb',label:'E♭',trans:900},{id:'f',label:'F',trans:700}];
@@ -356,7 +417,8 @@ let padOn=false,lastClip=-9;try{padOn=localStorage.getItem('toneAlbumPad')==='1'
 const PAD=Math.pow(10,-10/20); // -10 dB
 function padGain(){return padOn?PAD:1}
 function renderPad(){$('bPad').textContent='-10dB PAD '+(padOn?'ON':'OFF');$('bPad').setAttribute('aria-pressed',padOn)}
-function showProcessing(tr){ // 브라우저가 실제로 적용한 음성 처리 표시
+function showProcessing(tr){ // 브라우저가 실제로 적용한 음성 처리 표시 (경고는 아래 메시지 줄에도)
+  setTimeout(()=>{const s=tr.getSettings?tr.getSettings():{};if([s.autoGainControl,s.noiseSuppression,s.echoCancellation,s.voiceIsolation].some(v=>v===true))say(t('procWarn').replace(/^ — /,''))},600);
   const s=tr.getSettings?tr.getSettings():{};const f=v=>t(v===true?'procOn':v===false?'procOff':'procUnknown');
   const on=[s.autoGainControl,s.noiseSuppression,s.echoCancellation,s.voiceIsolation].some(v=>v===true);
   $('micInfo').textContent=t('procAgc')+' '+f(s.autoGainControl)+' · '+t('procNs')+' '+f(s.noiseSuppression)+' · '+t('procEc')+' '+f(s.echoCancellation)+(s.voiceIsolation!==undefined?' · '+t('procVi')+' '+f(s.voiceIsolation):'')+(on?t('procWarn'):'');
@@ -444,8 +506,8 @@ function update(fr,now){steps();
   $('note').textContent=noteOf(cents);$('noteW').textContent=noteW(cents);
   $('rWob').textContent='±'+sd(frames.filter(f=>f.f0&&f.t>now-2&&Math.abs(f.cents-cents)<70).map(f=>f.cents)).toFixed(1)+' cents';
   const T=target();
-  if(!T){clearMeters();$('rShape').textContent='–';$('rEo').textContent=eo.toFixed(1)+' dB';$('rPitch').textContent=t('equalTemp',{v:fmtC(cents-Math.round(cents/100)*100)});return}
-  if(Math.abs(cents-T.cents)>70){clearMeters();$('diffs').innerHTML='<span class="sub">'+t('otherNote',{n:T.note+wtag(T.cents)})+'</span>';$('rShape').textContent='–';$('rEo').textContent='–';$('rPitch').textContent='–';return}
+  if(!T){clearMeters();const dv=etDev(cents);setMeter('mP',dv,-30,30,-5,5);$('rShape').textContent='–';$('rEo').textContent=eo.toFixed(1)+' dB';$('rPitch').textContent=fmtC(dv);return} // 목표가 없으면 튜너: A4 기준 평균율과의 차이, ±5c 띠
+  if(Math.abs(cents-T.cents)>70){clearMeters();$('diffs').innerHTML='<span class="sub">'+t('otherNote',{n:noteOf(T.cents)+wtag(T.cents)})+'</span>';$('rShape').textContent='–';$('rEo').textContent='–';$('rPitch').textContent='–';return}
   const d={sh:shapeDiff(smooth,T.prof),dEo:eo-T.eo,dC:cents-T.cents};
   $('rShape').textContent=isNaN(d.sh)?'–':d.sh.toFixed(1)+' dB';$('rEo').textContent=fmtDb(d.dEo);$('rPitch').textContent=fmtC(d.dC);
   {const a=setMeter('mP',d.dC,-30,30,-8,8),b=setMeter('mE',d.dEo,-6,6,-2,2),c2=setMeter('mS',d.sh,0,9,0,3);$('statusFrame').classList.toggle('match',a&&b&&c2)}
@@ -460,7 +522,7 @@ function contour(c,cx,cy,Rad,p,col,dash,lw){if(!p)return;c.beginPath();for(let k
   c.strokeStyle=col;c.lineWidth=lw;c.setLineDash(dash);c.lineJoin='round';c.shadowColor=col;c.shadowBlur=lw>=1.5?12:0;if(!dash.length&&lw>2){c.fillStyle=col;c.globalAlpha=0.10;c.fill();c.globalAlpha=1}c.stroke();c.shadowBlur=0;c.setLineDash([])}
 function draw(now){drawPolar(now);drawTimeline(now)}
 function drawPolar(now){
-  const[c,w]=setup($('polar'));const cx=w/2,cy=w/2,Rad=w/2-24,S=4;c.clearRect(0,0,w,w);
+  const[c,w]=setup($('polar'));if(w<80)return;const cx=w/2,cy=w/2,Rad=w/2-24,S=4;c.clearRect(0,0,w,w);
   c.strokeStyle=css('--grid');c.lineWidth=1;c.setLineDash([3,5]);for(let k=1;k<=4;k++){c.beginPath();c.arc(cx,cy,Rad*k/S,0,7);c.stroke()}c.setLineDash([]);
   c.beginPath();c.moveTo(cx-Rad,cy);c.lineTo(cx+Rad,cy);c.moveTo(cx,cy-Rad);c.lineTo(cx,cy+Rad);c.stroke();
   const sw=c.createRadialGradient(cx,cy,0,cx,cy,Rad);sw.addColorStop(0,'rgba(0,240,255,0.07)');sw.addColorStop(1,'rgba(0,240,255,0)');c.fillStyle=sw;c.beginPath();c.arc(cx,cy,Rad,0,7);c.fill();c.strokeStyle=css('--core');c.globalAlpha=0.5;c.lineWidth=1.2;c.beginPath();c.arc(cx,cy,Rad,0,7);c.stroke();c.globalAlpha=1;for(let k=0;k<60;k++){const a=k/60*Math.PI*2,r1=Rad,r2=Rad-(k%5?4:9);c.beginPath();c.moveTo(cx+r1*Math.cos(a),cy+r1*Math.sin(a));c.lineTo(cx+r2*Math.cos(a),cy+r2*Math.sin(a));c.strokeStyle=css('--grid');c.stroke()}
@@ -477,21 +539,21 @@ function drawPolar(now){
   if(!running)c.fillText(t('polarIdle'),cx,cy+30);else if(!T)c.fillText(t('polarNoTarget'),cx,cy+30);
 }
 function drawTimeline(now){
-  const[c,w,h]=setup($('timeline'),150);c.clearRect(0,0,w,h);const L=36,Rr=w-6,T0=8,B=h-22,mid=(T0+B)/2,span=50;
+  const[c,w,h]=setup($('timeline'),$('timeline').clientHeight||64);if(w<80)return;c.clearRect(0,0,w,h);const L=36,Rr=w-6,T0=8,B=h-22,mid=(T0+B)/2,span=50;
   const y=d=>mid-Math.max(-span,Math.min(span,d))/span*(B-T0)/2;
   c.fillStyle='rgba(0,240,255,0.08)';c.fillRect(L,y(10),Rr-L,y(-10)-y(10));
   c.strokeStyle=css('--grid');c.fillStyle=css('--muted');c.font='11px "Share Tech Mono",monospace';c.textAlign='right';
-  [-50,-25,0,25,50].forEach(v=>{c.beginPath();c.moveTo(L,y(v));c.lineTo(Rr,y(v));c.stroke();c.fillText((v>0?'+':'')+v,L-4,y(v)+4)});
+  (h<100?[-50,0,50]:[-50,-25,0,25,50]).forEach(v=>{c.beginPath();c.moveTo(L,y(v));c.lineTo(Rr,y(v));c.stroke();c.fillText((v>0?'+':'')+v,L-4,y(v)+4)});
   if(!running)return;const x=t=>Rr-(now-t)/WIN_S*(Rr-L);c.textAlign='center';for(let s=0;s<=WIN_S;s+=2)c.fillText(s?t('traceSec',{s}):t('traceNow'),x(now-s),h-6);
   const T=target();const v=frames.filter(f=>f.f0);c.lineWidth=2.2;c.lineCap='round';c.strokeStyle=css('--core');c.shadowColor=css('--core');c.shadowBlur=10;
   for(let i=1;i<v.length;i++){const a=v[i-1],b=v[i];if(b.t-a.t>0.2||Math.abs(a.cents-b.cents)>60)continue;
-    const center=T&&Math.abs(b.cents-T.cents)<=70?T.cents:Math.round(b.cents/100)*100;c.beginPath();c.moveTo(x(a.t),y(a.cents-center));c.lineTo(x(b.t),y(b.cents-center));c.stroke()}c.shadowBlur=0
+    const center=T&&Math.abs(b.cents-T.cents)<=70?T.cents:b.cents-etDev(b.cents);c.beginPath();c.moveTo(x(a.t),y(a.cents-center));c.lineTo(x(b.t),y(b.cents-center));c.stroke()}c.shadowBlur=0
 }
 function thumb(cv,prof,ref){const[c,w]=setup(cv,52);c.clearRect(0,0,w,w);const cx=w/2,cy=w/2,R=w/2-2;if(ref)contour(c,cx,cy,R,ref,css('--ref'),[3,3],1);contour(c,cx,cy,R,prof,css('--core'),[],1.5)}
 
 /* ---------- lists ---------- */
 function fmtTime(d){d=new Date(d);return (d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0')}
-function statLine(it){return it.note+wtag(it.cents)+' · '+t('statDur',{s:it.dur.toFixed(1)})+' · '+t('statWob',{v:it.wob.toFixed(1)})+(it.attack!=null?' · '+t('statAttack',{v:Math.round(it.attack)}):'')}
+function statLine(it){return noteOf(it.cents)+wtag(it.cents)+' · '+t('statDur',{s:it.dur.toFixed(1)})+' · '+t('statWob',{v:it.wob.toFixed(1)})+(it.attack!=null?' · '+t('statAttack',{v:Math.round(it.attack)}):'')}
 function vsTarget(it){const T=target();if(!T||T.id===it.id||Math.abs(it.cents-T.cents)>70)return'';const ds=describe({sh:shapeDiff(it.prof,T.prof),dEo:it.eo-T.eo,dC:it.cents-T.cents});return '<br><span class="muted">'+t('vsTarget')+(ds.length?ds.map(s=>s.replace(/ \(.*\)/,'')).join(', '):t('vsSimilar'))+'</span>'}
 function renderTakes(){const el=$('takes');el.innerHTML='';if(!takes.length){el.innerHTML='<p class="empty">'+t('liveEmpty')+'</p>';return}
   const T=target();
@@ -505,13 +567,13 @@ function renderAlbum(){const el=$('album');el.innerHTML='';if(!album.length){el.
     el.appendChild(d);thumb(d.querySelector('canvas'),it.prof,null);
     d.querySelector('input').onchange=e=>{it.name=e.target.value;dbPut(it)};
     d.querySelector('[data-a=play]').onclick=()=>play(it);
-    d.querySelector('[data-a=tgt]').onclick=()=>{targetId=targetId===it.id?null:it.id;try{localStorage.setItem('toneAlbumTarget',targetId||'')}catch(e){}renderAlbum();renderTakes()};
+    d.querySelector('[data-a=tgt]').onclick=()=>{targetId=targetId===it.id?null:it.id;try{localStorage.setItem('toneAlbumTarget',targetId||'')}catch(e){}renderAlbum();renderTakes();if(targetId)showTab('play')};
     d.querySelector('[data-a=del]').onclick=()=>{if(d.dataset.confirm){album=album.filter(a=>a.id!==it.id);dbDel(it.id);if(targetId===it.id)targetId=null;renderAlbum();renderTakes()}else{d.dataset.confirm=1;d.querySelector('[data-a=del]').textContent=t('btnDeleteConfirm')}}});
   updateTargetLine();steps()}
-function updateTargetLine(){const T=target();$('targetLine').textContent=T?t('targetOf',{name:T.name||fmtTime(T.date),note:T.note+wtag(T.cents)}):t('targetNone');if(!T){const sp=document.createElement('span');sp.className='sub';sp.textContent=t('diffsHint');$('diffs').replaceChildren(sp)}}
+function updateTargetLine(){const T=target();$('targetLine').textContent=T?t('targetOf',{name:T.name||fmtTime(T.date),note:noteOf(T.cents)+wtag(T.cents)}):t('targetNone');if(!T){const sp=document.createElement('span');sp.className='sub';sp.textContent=t('diffsHint');$('diffs').replaceChildren(sp)}}
 function toItem(it,name){const pcm=new Int16Array(it.pcm.length);for(let i=0;i<pcm.length;i++)pcm[i]=Math.max(-32768,Math.min(32767,Math.round(it.pcm[i]*32767)));
   return{id:'a'+Date.now()+Math.floor(Math.random()*1e4),name:name||'',date:it.date||new Date(),sr:it.sr,pcm,note:it.note,cents:it.cents,prof:it.prof,eo:it.eo,wob:it.wob,attack:it.attack,dur:it.dur}}
-function saveTake(it){if(it.saved){say(t('alreadySaved'));return}it.saved=true;const a=toItem(it);album.unshift(a);dbPut(a);renderAlbum();say(t('savedNote',{n:it.note}))}
+function saveTake(it){if(it.saved){say(t('alreadySaved'));return}it.saved=true;const a=toItem(it);album.unshift(a);dbPut(a);renderAlbum();say(t('savedNote',{n:noteOf(it.cents)}))}
 $('bSaveLast').onclick=()=>{if(takes[0])saveTake(takes[0])};
 
 /* ---------- playback ---------- */
@@ -588,8 +650,21 @@ function pickBar(id,ev){const g=charts[id];if(!g||!g.geo)return;const r=$(id).ge
 $('bUnlock').addEventListener('click',()=>setPro(true));
 $('bRelock').addEventListener('click',()=>setPro(false));
 $('bLogClear').addEventListener('click',e=>{const b=e.currentTarget;if(b.dataset.confirm){logs=[];dbClearLog();delete b.dataset.confirm;b.textContent=t('logClear');renderGrowth();say(t('logCleared'))}else{b.dataset.confirm=1;b.textContent=t('btnDeleteConfirm')}});
-window.addEventListener('resize',()=>{renderTakes();renderAlbum();draw(total/(sr||1));['gMin','gWob','gRate'].forEach(drawBars)});
-(async()=>{hann=makeHann();await openDB();album=(await dbAll()).sort((a,b)=>new Date(b.date)-new Date(a.date));logs=(await dbAll('log')).sort((a,b)=>a.ts-b.ts);renderGrowth();try{targetId=localStorage.getItem('toneAlbumTarget')||null}catch(e){}if(!album.find(a=>a.id===targetId))targetId=null;renderAlbum();renderTakes();clearMeters();steps();draw(0)})();
+/* ---------- tabs: 연주 / 앨범·기록 ---------- */
+function showTab(n){if(n!=='log')n='play';$('tabPlay').hidden=n!=='play';$('tabLog').hidden=n!=='log';
+  ['tbPlay','tbLog'].forEach(id=>$(id).setAttribute('aria-selected',$(id).dataset.tab===n));try{localStorage.setItem('soriTab',n)}catch(e){}
+  window.scrollTo(0,0);if(n==='play'){fitScope();draw(total/(sr||1))}else{renderTakes();renderAlbum();renderGrowth()}}
+['tbPlay','tbLog'].forEach(id=>$(id).addEventListener('click',()=>showTab($(id).dataset.tab)));
+// 원 칸(정사각형) 크기를 화면 높이에 맞춰, 원·STATUS·음정 흐름이 스크롤 없이 한 화면에 들어오게 함
+function fitScope(){const sc=$('scope');if($('tabPlay').hidden)return;const wide=matchMedia('(min-width:900px)').matches;$('traceFrame').hidden=false;
+  const colW=sc.parentElement.clientWidth;
+  const calc=()=>{const top=sc.getBoundingClientRect().top+window.scrollY,limit=$('dock').getBoundingClientRect().top,below=wide?0:$('side').offsetHeight+8;return Math.floor(Math.min(colW,limit-top-below-8))};
+  let S=calc();if(!wide&&S<260){$('traceFrame').hidden=true;S=calc()}
+  sc.style.setProperty('--sq',Math.max(220,Math.min(colW,S))+'px')}
+A4S.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent='A4 = '+v+' Hz';$('selA4').appendChild(o)});$('selA4').value=a4;
+$('selA4').addEventListener('change',e=>{a4=+e.target.value;AOFF=1200*Math.log2(a4/440);try{localStorage.setItem('soriA4',a4)}catch(err){}renderAlbum();renderTakes();updateTargetLine();say(t('a4Changed',{v:a4}))});
+window.addEventListener('resize',()=>{fitScope();renderTakes();renderAlbum();draw(total/(sr||1));['gMin','gWob','gRate'].forEach(drawBars)});
+(async()=>{hann=makeHann();await openDB();album=(await dbAll()).sort((a,b)=>new Date(b.date)-new Date(a.date));logs=(await dbAll('log')).sort((a,b)=>a.ts-b.ts);renderGrowth();try{targetId=localStorage.getItem('toneAlbumTarget')||null}catch(e){}if(!album.find(a=>a.id===targetId))targetId=null;renderAlbum();renderTakes();clearMeters();steps();let tb='play';try{tb=localStorage.getItem('soriTab')||'play'}catch(e){}showTab(tb);if(document.fonts)document.fonts.ready.then(()=>{fitScope();draw(total/(sr||1))})})();
 })();
 </script>
 </body>
