@@ -172,6 +172,18 @@ details.help h2{font-family:var(--hud);font-size:.62rem;letter-spacing:.2em;colo
 details.help b{color:var(--ink)}
 details.help .steps{margin-top:8px}
 #micInfo{margin-top:6px}
+/* circle + pitch gauge column */
+.scopecol{display:flex;flex-direction:column;align-items:center;width:100%;min-width:0}
+.pgauge{width:var(--sq,100%);max-width:100%;border:1px solid var(--line);border-top:0;background:var(--panel);padding:7px 10px 3px}
+.pgauge .meter{grid-template-columns:36px 1fr 74px;font-size:.78rem}
+.pgauge .meter .nm{color:var(--ink);font-weight:700}
+.pgauge .track{height:14px}
+.pgauge .track .mk{height:24px;top:-6px;width:8px;margin-left:-4px}
+.pgauge .meter .ends{display:flex;font-size:.6rem;margin-top:-5px}
+/* growth tiles: label / value / last month on separate lines */
+.gtiles .tile{flex-direction:column;align-items:flex-start;gap:0;padding:6px 8px;min-width:0}
+.gtiles .tile small{white-space:normal;line-height:1.3;font-size:.68rem}
+.gtiles .tile b{white-space:nowrap;font-size:1.05rem}
 /* tabs + one-screen play view */
 main{gap:8px}
 @media (max-width:899px){h1{display:none}}
@@ -211,9 +223,9 @@ main{gap:8px}
 @media (max-width:899px){
   .meter .ends{display:none}
   .meter{grid-template-columns:58px 1fr 66px}
-  .tile{flex-direction:row;align-items:center;gap:6px;padding:3px 8px}
-  .tile small{font-size:.64rem;white-space:nowrap}
-  .tile b{font-size:.8rem;white-space:nowrap}
+  #statusFrame .tile{flex-direction:row;align-items:center;gap:6px;padding:3px 8px}
+  #statusFrame .tile small{font-size:.64rem;white-space:nowrap}
+  #statusFrame .tile b{font-size:.8rem;white-space:nowrap}
   .lvl{flex:1;margin-top:0;min-width:16px}
   #targetLine{max-width:32%;font-size:.66rem}
   /* 원 칸을 화면 폭에 꽉 채우고, 나머지 칸을 줄여 한 화면에 맞춤 */
@@ -253,6 +265,7 @@ main{gap:8px}
   </div>
 
   <div class="layout">
+    <div class="scopecol" id="scopecol">
     <section class="frame scope" id="scope" data-i18n-aria="scopeAria" aria-label="울림 모양">
       <div class="readout">
         <div><p id="note">--</p><p id="noteW">기보 --</p></div>
@@ -261,13 +274,14 @@ main{gap:8px}
       <canvas id="polar" data-i18n-aria="polarAria" aria-label="울림 모양 원형 그림"></canvas>
       <div class="legend"><span><i></i><span data-i18n="legendNow">지금 소리</span></span><span><i class="dash"></i><span data-i18n="legendTarget">목표 소리</span></span></div>
     </section>
+    <div class="pgauge" id="pgauge"><div class="meter"><span class="nm" data-i18n="mPitch">음정</span><div class="track" id="mP"><span class="zone"></span><span class="mid"></span><span class="mk"></span></div><span class="val" id="rPitch">–</span><div class="ends"><span data-i18n="mPitchLo">낮음 -30c</span><span data-i18n="mPitchHi">+30c 높음</span></div></div></div>
+    </div>
 
     <div class="side" id="side">
       <section class="frame" id="statusFrame" data-i18n-aria="statusAria" aria-label="목표와 다른 점">
         <div class="label">STATUS<span data-i18n="statusSub">목표와 다른 점</span></div>
         <div class="diffs" id="diffs"></div>
         <div class="meters">
-          <div class="meter"><span class="nm" data-i18n="mPitch">음정</span><div class="track" id="mP"><span class="zone"></span><span class="mid"></span><span class="mk"></span></div><span class="val" id="rPitch">–</span><div class="ends"><span data-i18n="mPitchLo">낮음 -30c</span><span data-i18n="mPitchHi">+30c 높음</span></div></div>
           <div class="meter"><span class="nm" data-i18n="mEven">짝수 배음</span><div class="track" id="mE"><span class="zone"></span><span class="mid"></span><span class="mk"></span></div><span class="val" id="rEo">–</span><div class="ends"><span data-i18n="mEvenLo">적음 -6dB</span><span data-i18n="mEvenHi">+6dB 많음</span></div></div>
           <div class="meter"><span class="nm" data-i18n="mShape">울림 모양</span><div class="track" id="mS"><span class="zone"></span><span class="mk"></span></div><span class="val" id="rShape">–</span><div class="ends"><span data-i18n="mShapeLo">같음</span><span data-i18n="mShapeHi">9dB 다름</span></div></div>
         </div>
@@ -387,8 +401,10 @@ const FMIN=55,FMAX=2500; // 음정을 찾는 범위 (Hz)
 const INSTS=[{id:'c',label:'C',trans:0},{id:'bb',label:'B♭',trans:200},{id:'eb',label:'E♭',trans:900},{id:'f',label:'F',trans:700}];
 const OLD_IDS={low:'c',tenor:'bb',ebcl:'eb',alto:'eb',bari:'eb',horn:'f'};
 let inst=INSTS[0];try{const s=localStorage.getItem('toneAlbumInst');inst=INSTS.find(i=>i.id===(OLD_IDS[s]||s))||inst}catch(e){}
-function wtag(c){return inst.trans?t('writtenTag',{n:noteOf(c+inst.trans)}):''}
-function noteW(c){return inst.trans?t('written',{n:c==null?'--':noteOf(c+inst.trans)}):''}
+// 이조 악기는 기보음을 크게(음 이름), 실음을 작게(괄호·아래 줄) 표시
+function nameOf(c){return noteOf(c+inst.trans)}
+function wtag(c){return inst.trans?t('concertTag',{n:noteOf(c)}):''}
+function noteW(c){return inst.trans?t('concert',{n:c==null?'--':noteOf(c)}):''}
 function avg(a){return a.length?a.reduce((s,v)=>s+v,0)/a.length:NaN}
 function sd(a){if(a.length<2)return 0;const m=avg(a);return Math.sqrt(a.reduce((s,v)=>s+(v-m)**2,0)/(a.length-1))}
 function css(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim()}
@@ -443,6 +459,9 @@ function showProcessing(tr){ // 브라우저가 실제로 적용한 음성 처�
   $('micInfo').textContent=t('procAgc')+' '+f(s.autoGainControl)+' · '+t('procNs')+' '+f(s.noiseSuppression)+' · '+t('procEc')+' '+f(s.echoCancellation)+(s.voiceIsolation!==undefined?' · '+t('procVi')+' '+f(s.voiceIsolation):'')+(on?t('procWarn'):'');
 }
 function setLed(on){$('led').className='led'+(on?' on':'');$('led').lastChild.textContent=on?'MIC LIVE':'MIC OFF'}
+let wakeLock=null;
+async function keepAwake(on){try{if(on&&'wakeLock' in navigator&&document.visibilityState==='visible'){if(!wakeLock){wakeLock=await navigator.wakeLock.request('screen');wakeLock.addEventListener('release',()=>{wakeLock=null})}}else if(!on&&wakeLock){const w=wakeLock;wakeLock=null;await w.release()}}catch(e){}}
+document.addEventListener('visibilitychange',()=>{if(running&&document.visibilityState==='visible')keepAwake(true)});
 async function start(){
   $('bMic').disabled=true;
   try{
@@ -454,11 +473,11 @@ async function start(){
     const src=ctx.createMediaStreamSource(stream);const pad=ctx.createGain();pad.gain.value=padGain();const sp=ctx.createScriptProcessor(2048,1,1);const mute=ctx.createGain();mute.gain.value=0;
     sp.onaudioprocess=e=>{if(!running)return;const d=e.inputBuffer.getChannelData(0);let pk=0;for(let i=0;i<d.length;i++){const v=d[i];ring[wpos]=v;wpos=(wpos+1)%ring.length;if(v>pk)pk=v;else if(-v>pk)pk=-v}total+=d.length;if(pk>=0.98*pad.gain.value)lastClip=total/sr};
     src.connect(pad);pad.connect(sp);sp.connect(mute);mute.connect(ctx.destination);mic={stream,src,pad,sp,mute};
-    running=true;$('bMic').textContent='MIC OFF';$('bMic').classList.add('live');setLed(true);say('');steps();tick();
+    running=true;keepAwake(true);$('bMic').textContent='MIC OFF';$('bMic').classList.add('live');setLed(true);say('');steps();tick();
   }catch(e){say(t('micError'))}
   $('bMic').disabled=false;
 }
-function stop(){
+function stop(){keepAwake(false);
   running=false;seg=null;frames=[];smooth=null;cur=null; // 불던 중인 음은 기록하지 않음
   if(mic){mic.sp.onaudioprocess=null;try{mic.src.disconnect();mic.pad.disconnect();mic.sp.disconnect();mic.mute.disconnect()}catch(e){}mic.stream.getTracks().forEach(t=>t.stop());mic=null}
   $('bMic').textContent='MIC ON';$('bMic').classList.remove('live');setLed(false);
@@ -522,11 +541,11 @@ function update(fr,now){steps();
   if(recent.length<3){$('note').textContent='--';$('noteW').textContent=noteW(null);smooth=null;cur=null;return}
   const cents=avg(recent.map(f=>f.cents));smooth=meanProf(recent);const eo=avg(recent.map(f=>f.eo));
   cur={cents,eo};
-  $('note').textContent=noteOf(cents);$('noteW').textContent=noteW(cents);
+  $('note').textContent=nameOf(cents);$('noteW').textContent=noteW(cents);
   $('rWob').textContent='±'+sd(frames.filter(f=>f.f0&&f.t>now-2&&Math.abs(f.cents-cents)<70).map(f=>f.cents)).toFixed(1)+' cents';
   const T=target();
   if(!T){clearMeters();const dv=etDev(cents);setMeter('mP',dv,-30,30,-5,5);$('rShape').textContent='–';$('rEo').textContent=eo.toFixed(1)+' dB';$('rPitch').textContent=fmtC(dv);return} // 목표가 없으면 튜너: A4 기준 평균율과의 차이, ±5c 띠
-  if(Math.abs(cents-T.cents)>70){clearMeters();$('diffs').innerHTML='<span class="sub">'+t('otherNote',{n:noteOf(T.cents)+wtag(T.cents)})+'</span>';$('rShape').textContent='–';$('rEo').textContent='–';$('rPitch').textContent='–';return}
+  if(Math.abs(cents-T.cents)>70){clearMeters();$('diffs').innerHTML='<span class="sub">'+t('otherNote',{n:nameOf(T.cents)+wtag(T.cents)})+'</span>';$('rShape').textContent='–';$('rEo').textContent='–';$('rPitch').textContent='–';return}
   const d={sh:shapeDiff(smooth,T.prof),dEo:eo-T.eo,dC:cents-T.cents};
   $('rShape').textContent=isNaN(d.sh)?'–':d.sh.toFixed(1)+' dB';$('rEo').textContent=fmtDb(d.dEo);$('rPitch').textContent=fmtC(d.dC);
   {const a=setMeter('mP',d.dC,-30,30,-8,8),b=setMeter('mE',d.dEo,-6,6,-2,2),c2=setMeter('mS',d.sh,0,9,0,3);$('statusFrame').classList.toggle('match',a&&b&&c2)}
@@ -572,7 +591,7 @@ function thumb(cv,prof,ref){const[c,w]=setup(cv,52);c.clearRect(0,0,w,w);const c
 
 /* ---------- lists ---------- */
 function fmtTime(d){d=new Date(d);return (d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0')}
-function statLine(it){return noteOf(it.cents)+wtag(it.cents)+' · '+t('statDur',{s:it.dur.toFixed(1)})+' · '+t('statWob',{v:it.wob.toFixed(1)})+(it.attack!=null?' · '+t('statAttack',{v:Math.round(it.attack)}):'')}
+function statLine(it){return nameOf(it.cents)+wtag(it.cents)+' · '+t('statDur',{s:it.dur.toFixed(1)})+' · '+t('statWob',{v:it.wob.toFixed(1)})+(it.attack!=null?' · '+t('statAttack',{v:Math.round(it.attack)}):'')}
 function vsTarget(it){const T=target();if(!T||T.id===it.id||Math.abs(it.cents-T.cents)>70)return'';const ds=describe({sh:shapeDiff(it.prof,T.prof),dEo:it.eo-T.eo,dC:it.cents-T.cents});return '<br><span class="muted">'+t('vsTarget')+(ds.length?ds.map(s=>s.replace(/ \(.*\)/,'')).join(', '):t('vsSimilar'))+'</span>'}
 function renderTakes(){const el=$('takes');el.innerHTML='';if(!takes.length){el.innerHTML='<p class="empty">'+t('liveEmpty')+'</p>';return}
   const T=target();
@@ -589,10 +608,10 @@ function renderAlbum(){const el=$('album');el.innerHTML='';if(!album.length){el.
     d.querySelector('[data-a=tgt]').onclick=()=>{targetId=targetId===it.id?null:it.id;try{localStorage.setItem('toneAlbumTarget',targetId||'')}catch(e){}renderAlbum();renderTakes();if(targetId)showTab('play')};
     d.querySelector('[data-a=del]').onclick=()=>{if(d.dataset.confirm){album=album.filter(a=>a.id!==it.id);dbDel(it.id);if(targetId===it.id)targetId=null;renderAlbum();renderTakes()}else{d.dataset.confirm=1;d.querySelector('[data-a=del]').textContent=t('btnDeleteConfirm')}}});
   updateTargetLine();steps()}
-function updateTargetLine(){const T=target();$('targetLine').textContent=T?t('targetOf',{name:T.name||fmtTime(T.date),note:noteOf(T.cents)+wtag(T.cents)}):t('targetNone');if(!T){const sp=document.createElement('span');sp.className='sub';sp.textContent=t('diffsHint');$('diffs').replaceChildren(sp)}}
+function updateTargetLine(){const T=target();$('targetLine').textContent=T?t('targetOf',{name:T.name||fmtTime(T.date),note:nameOf(T.cents)+wtag(T.cents)}):t('targetNone');if(!T){const sp=document.createElement('span');sp.className='sub';sp.textContent=t('diffsHint');$('diffs').replaceChildren(sp)}}
 function toItem(it,name){const pcm=new Int16Array(it.pcm.length);for(let i=0;i<pcm.length;i++)pcm[i]=Math.max(-32768,Math.min(32767,Math.round(it.pcm[i]*32767)));
   return{id:'a'+Date.now()+Math.floor(Math.random()*1e4),name:name||'',date:it.date||new Date(),sr:it.sr,pcm,note:it.note,cents:it.cents,prof:it.prof,eo:it.eo,wob:it.wob,attack:it.attack,dur:it.dur}}
-function saveTake(it){if(it.saved){say(t('alreadySaved'));return}it.saved=true;const a=toItem(it);album.unshift(a);dbPut(a);renderAlbum();say(t('savedNote',{n:noteOf(it.cents)}))}
+function saveTake(it){if(it.saved){say(t('alreadySaved'));return}it.saved=true;const a=toItem(it);album.unshift(a);dbPut(a);renderAlbum();say(t('savedNote',{n:nameOf(it.cents)}))}
 $('bSaveLast').onclick=()=>{if(takes[0])saveTake(takes[0])};
 
 /* ---------- playback ---------- */
@@ -676,11 +695,11 @@ function showTab(n){if(n!=='log')n='play';$('tabPlay').hidden=n!=='play';$('tabL
 ['tbPlay','tbLog'].forEach(id=>$(id).addEventListener('click',()=>showTab($(id).dataset.tab)));
 // 원 칸(정사각형) 크기를 화면 높이에 맞춰, 원·STATUS·음정 흐름이 스크롤 없이 한 화면에 들어오게 함
 function fitScope(){const sc=$('scope');if($('tabPlay').hidden)return;const wide=matchMedia('(min-width:900px)').matches;$('traceFrame').hidden=false;
-  const colW=sc.parentElement.clientWidth;
-  const calc=()=>{const top=sc.getBoundingClientRect().top+window.scrollY,limit=$('dock').getBoundingClientRect().top,below=wide?0:$('side').offsetHeight+8;return Math.floor(Math.min(colW,limit-top-below-8))};
+  const col=sc.parentElement,colW=col.clientWidth,gH=$('pgauge').offsetHeight;
+  const calc=()=>{const top=sc.getBoundingClientRect().top+window.scrollY,limit=$('dock').getBoundingClientRect().top,below=gH+(wide?0:$('side').offsetHeight+8);return Math.floor(Math.min(colW,limit-top-below-8))};
   let S=calc();if(!wide&&S<colW){$('traceFrame').hidden=true;S=calc()} // 폰에서는 음정 흐름보다 원 크기를 먼저
   if(!wide)S=colW; // 폰에서는 원 칸을 항상 화면 폭에 꽉 채움
-  sc.style.setProperty('--sq',Math.max(220,Math.min(colW,S))+'px')}
+  col.style.setProperty('--sq',Math.max(220,Math.min(colW,S))+'px')}
 A4S.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent='A4 = '+v+' Hz';$('selA4').appendChild(o)});$('selA4').value=a4;
 $('selA4').addEventListener('change',e=>{a4=+e.target.value;AOFF=1200*Math.log2(a4/440);try{localStorage.setItem('soriA4',a4)}catch(err){}renderAlbum();renderTakes();updateTargetLine();say(t('a4Changed',{v:a4}))});
 window.addEventListener('resize',()=>{fitScope();renderTakes();renderAlbum();draw(total/(sr||1));['gMin','gWob','gRate'].forEach(drawBars)});
