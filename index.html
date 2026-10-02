@@ -462,6 +462,10 @@ function setLed(on){$('led').className='led'+(on?' on':'');$('led').lastChild.te
 let wakeLock=null;
 async function keepAwake(on){try{if(on&&'wakeLock' in navigator&&document.visibilityState==='visible'){if(!wakeLock){wakeLock=await navigator.wakeLock.request('screen');wakeLock.addEventListener('release',()=>{wakeLock=null})}}else if(!on&&wakeLock){const w=wakeLock;wakeLock=null;await w.release()}}catch(e){}}
 document.addEventListener('visibilitychange',()=>{if(running&&document.visibilityState==='visible')keepAwake(true)});
+// 앱이나 탭 화면을 벗어나면 마이크를 자동으로 끔 (불던 중인 음은 기록하지 않음)
+function autoOff(){if(running){stop();say(t('micAutoOff'))}}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')autoOff()});
+window.addEventListener('pagehide',autoOff);
 async function start(){
   $('bMic').disabled=true;
   try{
