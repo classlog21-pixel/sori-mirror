@@ -81,6 +81,7 @@
   lockBody:'See your practice by date and compare this month with last month. Your log is already being saved on this device.',
   unlockTest:'TEST: unlock', relockTest:'TEST: lock again',
 
+  themeBase:'Vivid', themeCalm:'Calm', themeAria:'Change colors',
   tabPlay:'Play', tabLog:'Album · Log',
   a4Aria:'Reference pitch A4', a4Changed:'Reference: A4 = {v} Hz',
 
