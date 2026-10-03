@@ -68,6 +68,8 @@
   importNoNote:'{f}: no note found.',
   importFail:'{f}: cannot open this file. Use mp3, m4a or wav.',
   importDone:'Added {n} file(s) to the album.',
+  instVoice:'Voice', modeVoice:'Voice mode: pitch is a 1 s centre average, green within ±20 cents',
+  mPitchLoV:'Low -50c', mPitchHiV:'+50c High', tileVib:'Vibrato (2 s)', vibV:'±{a}c · {r}/s',
   instChanged:'Transposition: {k}',
 
   growthAria:'Growth log', growthSub:'Practice log · PRO',
@@ -93,6 +95,7 @@
     'The screen has two tabs, <b>Play</b> and <b>Album · Log</b>. While playing, the Play tab shows the circle, pitch gauge and STATUS on one screen. Your log, album and growth graph are in Album · Log.',
     'First pick your instrument\'s transposition key (C / B♭ / E♭ / F) and reference pitch (A4 = 440 Hz etc.). On a transposing instrument the big note name is the <b>written</b> note and the small text under it is the <b>concert</b> pitch.',
     '<b>Use it as a tuner</b>: with no target, the pitch gauge right under the circle works as a tuner. It shows how far you are from equal temperament at your chosen reference, and it turns green within ±5 cents.',
+    '<b>Voice mode</b>: pick "Voice" in the key list. Singing voices move with vibrato, so pitch and dots show the <b>centre of the vibrato</b> (1 s average) and green widens to ±20 cents. Each dot ring is 10 cents. The wobble box shows vibrato width (±cents) and rate (per second) as numbers. The outline is the average of the steady middle of the current note, and harmonics that fall in 2.5–3.5 kHz (the band that helps a voice carry) are marked in yellow.',
     'Press MIC ON and play as usual. Each note you hold and release is logged in LIVE LOG automatically. The screen stays on while the mic is on. Leaving the screen (home button or another app) turns the mic off automatically. Press MIC OFF when you finish. Nothing is recorded while the mic is off.',
     'When you like a tone, press the big SAVE button in the middle. You can also listen with ▶ in the list and save from there.',
     'Press "Set target" in the album to jump to the Play tab: the pink dashed line is the target and the blue line is your current tone. Try to make the two lines overlap.',

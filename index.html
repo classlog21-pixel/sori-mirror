@@ -427,7 +427,11 @@ function etDev(c){const x=c-AOFF;return x-Math.round(x/100)*100}
 function noteOf(c){const m=Math.round(69+(c-AOFF)/100);return NAMES[(m%12+12)%12]+(Math.floor(m/12)-1)}
 const FMIN=55,FMAX=2500; // 음정을 찾는 범위 (Hz)
 // trans: 실음 → 기보 (cents). 옥타브는 그 키의 대표 악기 기준 (B♭ 클라리넷, E♭ 알토 색소폰, F 호른)
-const INSTS=[{id:'c',label:'C',trans:0},{id:'bb',label:'B♭',trans:200},{id:'eb',label:'E♭',trans:900},{id:'f',label:'F',trans:700}];
+const INSTS=[{id:'c',label:'C',trans:0},{id:'bb',label:'B♭',trans:200},{id:'eb',label:'E♭',trans:900},{id:'f',label:'F',trans:700},{id:'voice',label:'',trans:0}];
+// 성악 모드: 비브라토가 있는 목소리에 맞춰 평균 시간과 허용 범위를 넓힘 (악기 모드 값과 나란히)
+function isVoice(){return inst.id==='voice'}
+function MP(){return isVoice()?{win:1.0,tunZ:20,tgtZ:20,rng:50,cell:10}:{win:0.6,tunZ:5,tgtZ:8,rng:30,cell:5}}
+function instLabel(i){return i.id==='voice'?t('instVoice'):i.label}
 const OLD_IDS={low:'c',tenor:'bb',ebcl:'eb',alto:'eb',bari:'eb',horn:'f'};
 let inst=INSTS[0];try{const s=localStorage.getItem('toneAlbumInst');inst=INSTS.find(i=>i.id===(OLD_IDS[s]||s))||inst}catch(e){}
 // 이조 악기는 기보음을 크게(음 이름), 실음을 작게(괄호·아래 줄) 표시
@@ -461,7 +465,7 @@ function analyzeFrame(x,t,rate,gate){
 function meanProf(fs){const p=[];for(let k=0;k<MAXH;k++){const v=fs.map(f=>f.prof[k]).filter(x=>x!=null);p.push(v.length?avg(v):null)}return p}
 function shapeDiff(a,b){const d=[];for(let k=1;k<8;k++)if(a[k]!=null&&b[k]!=null)d.push((a[k]-b[k])**2);return d.length?Math.sqrt(avg(d)):NaN}
 function summarize(vf,t0){ // vf: voiced frames of one note
-  const steady=vf.slice(Math.min(Math.floor(vf.length*0.2),8));const use=steady.length>=4?steady:vf;
+  const steady=isVoice()?vf.slice(Math.floor(vf.length*0.2),Math.ceil(vf.length*0.8)):vf.slice(Math.min(Math.floor(vf.length*0.2),8));const use=steady.length>=4?steady:vf; // 성악: 시작·끝 20%를 빼고 가운데만
   const med=avg(use.map(f=>f.cents));let st=null;
   for(let i=0;i+4<vf.length;i++){if(vf.slice(i,i+5).every(f=>Math.abs(f.cents-med)<15)){st=vf[i].t;break}}
   return {cents:med,note:noteOf(med),prof:meanProf(use),eo:avg(use.map(f=>f.eo)),wob:sd(use.map(f=>f.cents)),attack:st==null?null:Math.max(0,(st-t0)*1000),dur:vf[vf.length-1].t-t0}}
@@ -558,30 +562,31 @@ function describe(d){ // d: {sh,dEo,dC}
   const out=[];
   if(!isNaN(d.sh)&&d.sh>3)out.push(t('diffShape',{v:d.sh.toFixed(1)}));
   if(Math.abs(d.dEo)>2)out.push(t(d.dEo>0?'diffEvenMore':'diffEvenLess',{v:(d.dEo>0?'+':'')+d.dEo.toFixed(1)}));
-  if(Math.abs(d.dC)>8)out.push(t(d.dC>0?'diffPitchHigh':'diffPitchLow',{v:(d.dC>0?'+':'')+Math.round(d.dC)}));
+  if(Math.abs(d.dC)>MP().tgtZ)out.push(t(d.dC>0?'diffPitchHigh':'diffPitchLow',{v:(d.dC>0?'+':'')+Math.round(d.dC)}));
   return out}
 
 function setMeter(id,v,min,max,zlo,zhi){const tr=$(id),mk=tr.querySelector('.mk'),z=tr.querySelector('.zone'),m=tr.querySelector('.mid');
   const pct=x=>Math.max(0,Math.min(100,(x-min)/(max-min)*100));z.style.left=pct(zlo)+'%';z.style.width=(pct(zhi)-pct(zlo))+'%';if(m)m.style.left=pct(0)+'%';
   if(v==null||isNaN(v)){mk.style.display='none';return false}const inz=v>=zlo&&v<=zhi;mk.style.display='block';mk.style.left=pct(v)+'%';mk.classList.toggle('in',inz);return inz}
-function clearMeters(){setMeter('mP',null,-30,30,-8,8);setMeter('mE',null,-6,6,-2,2);setMeter('mS',null,0,9,0,3);$('statusFrame').classList.remove('match')}
+function clearMeters(){const m=MP();setMeter('mP',null,-m.rng,m.rng,-m.tgtZ,m.tgtZ);setMeter('mE',null,-6,6,-2,2);setMeter('mS',null,0,9,0,3);$('statusFrame').classList.remove('match')}
 function steps(){const T=target();const s1=$('st1'),s2=$('st2'),s3=$('st3');const cur=!running?1:(!album.length?2:(!T?3:3));
   [s1,s2,s3].forEach((el,i)=>{el.className='step'+(i+1<cur?' done':i+1===cur?' now':'')});if(T&&running){s3.className='step now'}}
 function update(fr,now){steps();
   const clip=now-lastClip<1;
   $('rLvl').textContent=(fr.db>-100?Math.round(fr.db)+' dB':'–')+(padOn?' (PAD)':'')+(clip?t('clip'):'');{const L=$('lvl');L.querySelector('i').style.width=Math.max(0,Math.min(100,(fr.db+60)/60*100))+'%';L.classList.toggle('hot',clip)}
-  const recent=frames.filter(f=>f.f0&&f.t>now-0.6);
+  const M=MP(),recent=frames.filter(f=>f.f0&&f.t>now-M.win);
   if(recent.length<3){$('note').textContent='--';$('noteW').textContent=noteW(null);smooth=null;cur=null;return}
-  const cents=avg(recent.map(f=>f.cents));smooth=meanProf(recent);const eo=avg(recent.map(f=>f.eo));
+  const cents=avg(recent.map(f=>f.cents));smooth=isVoice()&&seg&&seg.frames.length>=10?meanProf(seg.frames.slice(Math.floor(seg.frames.length*0.2)).slice(-65)):meanProf(recent);const eo=avg(recent.map(f=>f.eo)); // 성악: 지금 음의 안정된 부분 평균을 테두리로
   cur={cents,eo};
   $('note').textContent=nameOf(cents);$('noteW').textContent=noteW(cents);
-  $('rWob').textContent='±'+sd(frames.filter(f=>f.f0&&f.t>now-2&&Math.abs(f.cents-cents)<70).map(f=>f.cents)).toFixed(1)+' cents';
+  if(isVoice()){const v=vibrato(now,cents);$('rWob').textContent=v?t('vibV',{a:Math.round(v.amp),r:v.rate.toFixed(1)}):'–'}
+  else $('rWob').textContent='±'+sd(frames.filter(f=>f.f0&&f.t>now-2&&Math.abs(f.cents-cents)<70).map(f=>f.cents)).toFixed(1)+' cents';
   const T=target();
-  if(!T){clearMeters();const dv=etDev(cents);setMeter('mP',dv,-30,30,-5,5);$('rShape').textContent='–';$('rEo').textContent=eo.toFixed(1)+' dB';$('rPitch').textContent=fmtC(dv);return} // 목표가 없으면 튜너: A4 기준 평균율과의 차이, ±5c 띠
+  if(!T){clearMeters();const dv=etDev(cents);setMeter('mP',dv,-M.rng,M.rng,-M.tunZ,M.tunZ);$('rShape').textContent='–';$('rEo').textContent=eo.toFixed(1)+' dB';$('rPitch').textContent=fmtC(dv);return} // 목표가 없으면 튜너: A4 기준 평균율과의 차이, ±5c 띠
   if(Math.abs(cents-T.cents)>70){clearMeters();$('diffs').innerHTML='<span class="sub">'+t('otherNote',{n:nameOf(T.cents)+wtag(T.cents)})+'</span>';$('rShape').textContent='–';$('rEo').textContent='–';$('rPitch').textContent='–';return}
   const d={sh:shapeDiff(smooth,T.prof),dEo:eo-T.eo,dC:cents-T.cents};
   $('rShape').textContent=isNaN(d.sh)?'–':d.sh.toFixed(1)+' dB';$('rEo').textContent=fmtDb(d.dEo);$('rPitch').textContent=fmtC(d.dC);
-  {const a=setMeter('mP',d.dC,-30,30,-8,8),b=setMeter('mE',d.dEo,-6,6,-2,2),c2=setMeter('mS',d.sh,0,9,0,3);$('statusFrame').classList.toggle('match',a&&b&&c2)}
+  {const a=setMeter('mP',d.dC,-M.rng,M.rng,-M.tgtZ,M.tgtZ),b=setMeter('mE',d.dEo,-6,6,-2,2),c2=setMeter('mS',d.sh,0,9,0,3);$('statusFrame').classList.toggle('match',a&&b&&c2)}
   const ds=describe(d);$('diffs').innerHTML=ds.length?ds.map(s=>'<span>'+s+'</span>').join(''):'<span class="same">'+t('same')+'</span>';
 }
 function fmtC(v){return(v>=0?'+':'')+Math.round(v)+' cents'}
@@ -602,8 +607,13 @@ function drawPolar(now){
   const T=target();const onT=T&&cur&&Math.abs(cur.cents-T.cents)<=70;
   if(T)contour(c,cx,cy,Rad,T.prof,css('--ref'),[6,5],1.6);
   if(smooth)contour(c,cx,cy,Rad,smooth,css('--core'),[],2.2);
+  if(isVoice()&&cur){const f0=440*Math.pow(2,cur.cents/1200);let any=false;c.strokeStyle=css('--warm');c.lineWidth=5;c.globalAlpha=0.7; // 가수 포먼트 대역(2.5~3.5kHz)에 드는 배음 자리 표시
+    for(let h=1;h<=MAXH;h++){const fq=h*f0;if(fq<2500||fq>3500)continue;any=true;const a=(h-1)/MAXH*Math.PI*2-Math.PI/2,da=Math.PI/MAXH*0.7;c.beginPath();c.arc(cx,cy,Rad+5,a-da,a+da);c.stroke()}
+    c.globalAlpha=1;if(any){c.fillStyle=css('--warm');c.font='10px "Share Tech Mono",monospace';c.textAlign='right';c.fillText('2.5–3.5kHz',w-4,w-16)}}
   if(running){const ref=onT?T:(cur?{eo:cur.eo,cents:cur.cents}:null);
-    if(ref){frames.filter(f=>f.f0&&f.t>now-3&&Math.abs(f.cents-ref.cents)<70).forEach(f=>{let x=(f.eo-ref.eo)/3,y=(f.cents-ref.cents)/5;const m=Math.hypot(x,y);if(m>S){x*=S/m;y*=S/m}
+    const M=MP(),vf=frames.filter(f=>f.f0&&f.t>now-4);
+    const cOf=f=>{if(!isVoice())return f.cents;const w=vf.filter(g=>g.t<=f.t&&g.t>f.t-M.win&&Math.abs(g.cents-f.cents)<70);return avg(w.map(g=>g.cents))}; // 성악: 비브라토 중심
+    if(ref){vf.filter(f=>f.t>now-3&&Math.abs(f.cents-ref.cents)<70).forEach(f=>{let x=(f.eo-ref.eo)/3,y=(cOf(f)-ref.cents)/M.cell;const m=Math.hypot(x,y);if(m>S){x*=S/m;y*=S/m}
       c.globalAlpha=0.15+0.8*(1-(now-f.t)/3);const dc=css(onT?'--core':'--muted');c.fillStyle=dc;c.shadowColor=dc;c.shadowBlur=8;c.beginPath();c.arc(cx+x/S*Rad,cy-y/S*Rad,3,0,7);c.fill()});c.globalAlpha=1;c.shadowBlur=0}}
   c.strokeStyle=css('--ink');c.lineWidth=1;c.beginPath();c.moveTo(cx-8,cy);c.lineTo(cx+8,cy);c.moveTo(cx,cy-8);c.lineTo(cx,cy+8);c.stroke();
   c.fillStyle=css('--core');c.textAlign='center';c.font='12px "Noto Sans KR",sans-serif';
@@ -675,8 +685,17 @@ $('fImport').addEventListener('change',async e=>{
 $('bMic').addEventListener('click',()=>running?stop():start());
 $('bPad').addEventListener('click',()=>{padOn=!padOn;try{localStorage.setItem('toneAlbumPad',padOn?'1':'0')}catch(e){}if(mic)mic.pad.gain.value=padGain();renderPad()});
 renderPad();
-INSTS.forEach(i=>{const o=document.createElement('option');o.value=i.id;o.textContent=i.label;$('selInst').appendChild(o)});$('selInst').value=inst.id;$('noteW').textContent=noteW(null);
-$('selInst').addEventListener('change',e=>{inst=INSTS.find(i=>i.id===e.target.value)||inst;try{localStorage.setItem('toneAlbumInst',inst.id)}catch(err){}seg=null;if(!cur)$('noteW').textContent=noteW(null);renderAlbum();renderTakes();say(t('instChanged',{k:inst.label}))});
+INSTS.forEach(i=>{const o=document.createElement('option');o.value=i.id;o.textContent=instLabel(i);$('selInst').appendChild(o)});$('selInst').value=inst.id;$('noteW').textContent=noteW(null);
+$('selInst').addEventListener('change',e=>{inst=INSTS.find(i=>i.id===e.target.value)||inst;try{localStorage.setItem('toneAlbumInst',inst.id)}catch(err){}seg=null;if(!cur)$('noteW').textContent=noteW(null);renderAlbum();renderTakes();applyMode();say(t(isVoice()?'modeVoice':'instChanged',{k:instLabel(inst)}))});
+// 모드에 따라 게이지 끝 글씨와 흔들림 칸 이름을 바꿈
+function applyMode(){const m=MP(),v=isVoice();document.querySelectorAll('[data-i18n=mPitchLo]').forEach(e=>e.textContent=t(v?'mPitchLoV':'mPitchLo'));document.querySelectorAll('[data-i18n=mPitchHi]').forEach(e=>e.textContent=t(v?'mPitchHiV':'mPitchHi'));
+  document.querySelectorAll('[data-i18n=tileWobble]').forEach(e=>e.textContent=t(v?'tileVib':'tileWobble'));clearMeters();draw(total/(sr||1))}
+applyMode();
+// 비브라토: 최근 2초 같은 음에서 1초 이동평균을 뺀 나머지로 폭(±cents)과 속도(회/초)를 계산
+function vibrato(now,cents){const fs=frames.filter(f=>f.f0&&f.t>now-2&&Math.abs(f.cents-cents)<70);if(fs.length<15)return null;
+  const r=fs.map(f=>{const w=fs.filter(g=>Math.abs(g.t-f.t)<=0.5);return f.cents-avg(w.map(g=>g.cents))});
+  let x=0,last=0;r.forEach(v=>{if(Math.abs(v)<2)return;const sg=v>0?1:-1;if(last&&sg!==last)x++;last=sg});
+  const span=fs[fs.length-1].t-fs[0].t;return{amp:sd(r)*Math.SQRT2,rate:span>0?x/(2*span):0}}
 /* ---------- practice log + growth (PRO) ---------- */
 // 음을 하나 불고 멈출 때마다 기록(소리 없이 숫자만)을 이 기기에 남김. 무료 사용자도 기록은 쌓이고, 그래프만 잠김
 const PRO_TEST_TOGGLE=true; // 결제 연결 전 시험용 잠금 해제 버튼. 결제를 붙이면 false로
@@ -685,8 +704,8 @@ function setPro(v){try{localStorage.setItem('soriPro',v?'1':'0')}catch(e){}rende
 let logs=[];const charts={};
 function dayKey(d){d=new Date(d);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function logTake(it){const T=target();let tgt=false,match=null;
-  if(T&&Math.abs(it.cents-T.cents)<=70){tgt=true;const sh=shapeDiff(it.prof,T.prof),dEo=it.eo-T.eo,dC=it.cents-T.cents;match=Math.abs(dC)<=8&&Math.abs(dEo)<=2&&!isNaN(sh)&&sh<=3} // STATUS 초록과 같은 기준
-  const e={id:'l'+Date.now()+Math.floor(Math.random()*1e4),ts:Date.now(),day:dayKey(Date.now()),note:it.note,cents:it.cents,wob:it.wob,attack:it.attack,dur:it.dur,tgt,match};
+  if(T&&Math.abs(it.cents-T.cents)<=70){tgt=true;const sh=shapeDiff(it.prof,T.prof),dEo=it.eo-T.eo,dC=it.cents-T.cents;match=Math.abs(dC)<=MP().tgtZ&&Math.abs(dEo)<=2&&!isNaN(sh)&&sh<=3} // STATUS 초록과 같은 기준
+  const e={id:'l'+Date.now()+Math.floor(Math.random()*1e4),ts:Date.now(),day:dayKey(Date.now()),note:it.note,cents:it.cents,wob:it.wob,attack:it.attack,dur:it.dur,tgt,match,mode:isVoice()?'voice':'inst'};
   logs.push(e);dbPutLog(e);renderGrowth()}
 function agg(list){let dur=0,w=0,tn=0,tm=0;list.forEach(e=>{dur+=e.dur;w+=e.wob*e.dur;if(e.tgt){tn++;if(e.match)tm++}});return{n:list.length,min:dur/60,wob:dur?w/dur:NaN,rate:tn?tm/tn*100:NaN}}
 const gFmt={min:v=>t('gMinV',{v:v<10?v.toFixed(1):Math.round(v)}),wob:v=>'±'+v.toFixed(1)+'c',rate:v=>Math.round(v)+'%'};
