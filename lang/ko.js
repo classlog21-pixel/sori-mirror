@@ -82,7 +82,9 @@
   lockBody:'날짜별 연습 기록과 이번 달·지난달 비교를 볼 수 있습니다. 기록은 지금도 이 기기에 쌓이고 있습니다.',
   unlockTest:'테스트: 잠금 해제', relockTest:'테스트: 다시 잠그기',
 
-  themeBase:'기본 색', themeCalm:'차분한 색', themeAria:'화면 색 바꾸기',
+  themeAria:'화면 색 고르기',
+  theme_base:'기본 색', theme_calm:'차분한 색', theme_forest:'숲', theme_sunset:'노을', theme_ocean:'밤바다',
+  themeSet:'화면 색: {n}', themePreview:'{n} 미리보기 · PRO에서 저장됩니다',
   tabPlay:'연주', tabLog:'앨범 · 기록',
   a4Aria:'기준음 A4', a4Changed:'기준음: A4 = {v} Hz',
 

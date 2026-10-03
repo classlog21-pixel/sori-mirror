@@ -177,20 +177,29 @@ details.help .steps{margin-top:8px}
 .hudbar>span,.led{white-space:nowrap}
 @media (max-width:899px){.hudsub{display:none}}
 .themebtn{min-height:22px;padding:0 8px;font-family:var(--sans);font-size:.7rem;letter-spacing:0;text-transform:none;color:var(--muted)}
-/* 차분한 테마: 낮은 채도, 빛 번짐 없음. 초록 = 기준 안, 분홍 = 목표 같은 색의 뜻은 그대로 */
+/* 테마: base(기본, 빛 번짐)는 속성 없음. 나머지는 빛 번짐 없는 차분한 스타일 + 색 변수만 바꿈.
+   색의 뜻은 모든 테마에서 같음: --ok 초록 = 기준 안, --ref = 목표, --core = 지금 소리 */
 :root[data-theme=calm]{--bg:#1c2128;--panel:rgba(40,47,56,.9);--panel2:#2b323c;--ink:#e4e7ea;--muted:#9aa4b0;--line:#3b4451;--grid:#3a4350;
   --core:#86b9c4;--ref:#d29aa9;--warm:#d6c27e;--ok:#8fc49d}
-:root[data-theme=calm] body{background:var(--bg)}
-:root[data-theme=calm] body::after{display:none}
-:root[data-theme=calm] *{text-shadow:none!important;box-shadow:none!important}
-:root[data-theme=calm] button,:root[data-theme=calm] select,:root[data-theme=calm] .tile,:root[data-theme=calm] .track,:root[data-theme=calm] .lvl,:root[data-theme=calm] .step{background:rgba(255,255,255,.035)}
-:root[data-theme=calm] .diffs span{background:rgba(210,154,169,.08)}
-:root[data-theme=calm] .diffs .same{background:rgba(143,196,157,.1)}
-:root[data-theme=calm] .diffs .sub{background:none}
-:root[data-theme=calm] .frame.match{border-color:var(--ok)}
-:root[data-theme=calm] #bSaveLast{background:rgba(210,154,169,.14)}
-:root[data-theme=calm] .lvl i{background:var(--core)}
-:root[data-theme=calm] select option{background:#2b323c}
+:root[data-theme=forest]{--bg:#121a16;--panel:rgba(24,36,30,.9);--panel2:#1d2b24;--ink:#e3efe6;--muted:#8fa89a;--line:#2c4236;--grid:#2a3d33;
+  --core:#e0c98a;--ref:#e39a8c;--warm:#f0d58a;--ok:#7fd8a0}
+:root[data-theme=sunset]{--bg:#1d1418;--panel:rgba(44,28,34,.9);--panel2:#33222a;--ink:#f3e6e8;--muted:#b39aa2;--line:#4a3039;--grid:#45303a;
+  --core:#f2b880;--ref:#c9a0f0;--warm:#f6d27a;--ok:#8fd6a3}
+:root[data-theme=ocean]{--bg:#0b1426;--panel:rgba(16,30,54,.9);--panel2:#13243f;--ink:#e2ecfa;--muted:#8aa0c0;--line:#22395e;--grid:#1f3456;
+  --core:#7fb2ff;--ref:#ff9fc4;--warm:#ffd27a;--ok:#7fe0b0}
+:root[data-theme] body{background:var(--bg)}
+:root[data-theme] body::after{display:none}
+:root[data-theme] *{text-shadow:none!important;box-shadow:none!important}
+:root[data-theme] button,:root[data-theme] select,:root[data-theme] .tile,:root[data-theme] .track,:root[data-theme] .lvl,:root[data-theme] .step{background:rgba(255,255,255,.035)}
+:root[data-theme] .diffs span{background:color-mix(in srgb,var(--ref) 10%,transparent);border-left-color:var(--ref)}
+:root[data-theme] .diffs .same{background:color-mix(in srgb,var(--ok) 12%,transparent)}
+:root[data-theme] .diffs .sub{background:none}
+:root[data-theme] .frame.match{border-color:var(--ok)}
+:root[data-theme] #bSaveLast{background:color-mix(in srgb,var(--ref) 16%,transparent)}
+:root[data-theme] .lvl i{background:var(--core)}
+:root[data-theme] select option{background:var(--panel2)}
+:root[data-theme] .dock{background:linear-gradient(to top,var(--bg) 70%,transparent)}
+.themesel{flex:0 0 auto;min-height:22px;height:22px;padding:0 4px;font-size:.7rem;font-family:var(--sans);color:var(--muted);max-width:150px}
 /* circle + pitch gauge column */
 .scopecol{display:flex;flex-direction:column;align-items:center;width:100%;min-width:0}
 .pgauge{width:var(--sq,100%);max-width:100%;border:1px solid var(--line);border-top:0;background:var(--panel);padding:5px 10px 2px}
@@ -266,11 +275,11 @@ main{gap:8px}
   .msg{font-size:.74rem}
 }
 </style>
-<script>try{if(localStorage.getItem('soriTheme')==='calm')document.documentElement.dataset.theme='calm'}catch(e){}</script>
+<script>try{var th=localStorage.getItem('soriTheme'),pro=localStorage.getItem('soriPro')==='1';if(th==='calm'||(pro&&['forest','sunset','ocean'].indexOf(th)>=0))document.documentElement.dataset.theme=th}catch(e){}</script>
 </head>
 <body>
 <main>
-  <div class="hudbar"><span><b>SORI//MIRROR</b><span class="hudsub"> · CLASSLOG</span></span><span class="hudr"><button type="button" id="bTheme" class="themebtn"></button><span class="led" id="led"><i></i>MIC OFF</span></span></div>
+  <div class="hudbar"><span><b>SORI//MIRROR</b><span class="hudsub"> · CLASSLOG</span></span><span class="hudr"><select id="selTheme" class="themesel" data-i18n-aria="themeAria" aria-label="화면 색"></select><span class="led" id="led"><i></i>MIC OFF</span></span></div>
   <h1><span data-i18n="title" class="h1t">내 소리 앨범</span><span data-i18n="appTag">측정만 · 판정 없음</span></h1>
   <nav class="tabs" role="tablist">
     <button type="button" role="tab" id="tbPlay" data-tab="play" aria-selected="true"><span data-i18n="tabPlay">연주</span></button>
@@ -672,7 +681,7 @@ $('selInst').addEventListener('change',e=>{inst=INSTS.find(i=>i.id===e.target.va
 // 음을 하나 불고 멈출 때마다 기록(소리 없이 숫자만)을 이 기기에 남김. 무료 사용자도 기록은 쌓이고, 그래프만 잠김
 const PRO_TEST_TOGGLE=true; // 결제 연결 전 시험용 잠금 해제 버튼. 결제를 붙이면 false로
 function isPro(){try{return localStorage.getItem('soriPro')==='1'}catch(e){return false}}
-function setPro(v){try{localStorage.setItem('soriPro',v?'1':'0')}catch(e){}renderGrowth()}
+function setPro(v){try{localStorage.setItem('soriPro',v?'1':'0')}catch(e){}renderGrowth();if(typeof renderThemeSel==='function'){if(!v&&PAID_THEMES.includes(curTheme()))applyTheme('base',true);renderThemeSel()}}
 let logs=[];const charts={};
 function dayKey(d){d=new Date(d);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function logTake(it){const T=target();let tgt=false,match=null;
@@ -726,13 +735,19 @@ function fitScope(){const sc=$('scope');if($('tabPlay').hidden)return;const wide
   col.style.setProperty('--sq',Math.max(220,Math.min(colW,S))+'px')}
 A4S.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent='A4 = '+v+' Hz';$('selA4').appendChild(o)});$('selA4').value=a4;
 $('selA4').addEventListener('change',e=>{a4=+e.target.value;AOFF=1200*Math.log2(a4/440);try{localStorage.setItem('soriA4',a4)}catch(err){}renderAlbum();renderTakes();updateTargetLine();say(t('a4Changed',{v:a4}))});
-/* ---------- theme ---------- */
-function curTheme(){return document.documentElement.dataset.theme==='calm'?'calm':'base'}
-function renderThemeBtn(){const th=curTheme();$('bTheme').textContent='◐ '+t(th==='calm'?'themeCalm':'themeBase');$('bTheme').setAttribute('aria-label',t('themeAria'));
-  document.querySelector('meta[name=theme-color]').setAttribute('content',th==='calm'?'#1c2128':'#04060b')}
-$('bTheme').addEventListener('click',()=>{const next=curTheme()==='calm'?'base':'calm';if(next==='calm')document.documentElement.dataset.theme='calm';else delete document.documentElement.dataset.theme;
-  try{localStorage.setItem('soriTheme',next)}catch(e){}renderThemeBtn();draw(total/(sr||1));renderTakes();renderAlbum();renderGrowth();say(t(next==='calm'?'themeCalm':'themeBase'))});
-renderThemeBtn();
+/* ---------- theme: 무료 2개(기본, 차분한 색) + PRO 3개(숲, 노을, 밤바다) ---------- */
+const THEMES=['base','calm','forest','sunset','ocean'],PAID_THEMES=['forest','sunset','ocean'];
+const THEME_BG={base:'#04060b',calm:'#1c2128',forest:'#121a16',sunset:'#1d1418',ocean:'#0b1426'};
+function curTheme(){const th=document.documentElement.dataset.theme;return THEMES.includes(th)?th:'base'}
+function applyTheme(th,save){if(th==='base')delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme=th;
+  if(save){try{localStorage.setItem('soriTheme',th)}catch(e){}}
+  document.querySelector('meta[name=theme-color]').setAttribute('content',THEME_BG[th]);draw(total/(sr||1));renderTakes();renderAlbum();renderGrowth()}
+function renderThemeSel(){const sel=$('selTheme'),pro=isPro();sel.innerHTML='';
+  THEMES.forEach(th=>{const o=document.createElement('option');o.value=th;const paid=PAID_THEMES.includes(th);o.textContent=(paid&&!pro?'🔒 ':'◐ ')+t('theme_'+th)+(paid?' · PRO':'');sel.appendChild(o)});sel.value=curTheme()}
+$('selTheme').addEventListener('change',e=>{const th=e.target.value;
+  if(PAID_THEMES.includes(th)&&!isPro()){applyTheme(th,false);say(t('themePreview',{n:t('theme_'+th)}))} // 무료 사용자는 미리보기만, 저장 안 함
+  else{applyTheme(th,true);say(t('themeSet',{n:t('theme_'+th)}))}});
+renderThemeSel();
 window.addEventListener('resize',()=>{fitScope();renderTakes();renderAlbum();draw(total/(sr||1));['gMin','gWob','gRate'].forEach(drawBars)});
 (async()=>{hann=makeHann();await openDB();album=(await dbAll()).sort((a,b)=>new Date(b.date)-new Date(a.date));logs=(await dbAll('log')).sort((a,b)=>a.ts-b.ts);renderGrowth();try{targetId=localStorage.getItem('toneAlbumTarget')||null}catch(e){}if(!album.find(a=>a.id===targetId))targetId=null;renderAlbum();renderTakes();clearMeters();steps();let tb='play';try{tb=localStorage.getItem('soriTab')||'play'}catch(e){}showTab(tb);if(document.fonts)document.fonts.ready.then(()=>{fitScope();draw(total/(sr||1))})})();
 })();
