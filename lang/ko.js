@@ -90,6 +90,7 @@
   tabPlay:'연주', tabLog:'앨범 · 기록',
   a4Aria:'기준음 A4', a4Changed:'기준음: A4 = {v} Hz',
 
+  privacyLink:'개인정보처리방침',
   helpSummary:'HOW TO · 사용법',
   helpStepsTitle:'사용 순서',
   helpSteps:[

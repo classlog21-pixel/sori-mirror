@@ -89,6 +89,7 @@
   tabPlay:'Play', tabLog:'Album · Log',
   a4Aria:'Reference pitch A4', a4Changed:'Reference: A4 = {v} Hz',
 
+  privacyLink:'Privacy policy',
   helpSummary:'HOW TO',
   helpStepsTitle:'Steps',
   helpSteps:[
