@@ -702,7 +702,7 @@ function vibrato(now,cents){const fs=frames.filter(f=>f.f0&&f.t>now-2&&Math.abs(
 // 음을 하나 불고 멈출 때마다 기록(소리 없이 숫자만)을 이 기기에 남김. 무료 사용자도 기록은 쌓이고, 그래프만 잠김
 const PRO_TEST_TOGGLE=true; // 결제 연결 전 시험용 잠금 해제 버튼. 결제를 붙이면 false로
 function isPro(){try{return localStorage.getItem('soriPro')==='1'}catch(e){return false}}
-function setPro(v){try{localStorage.setItem('soriPro',v?'1':'0')}catch(e){}renderGrowth();if(typeof renderThemeSel==='function'){if(!v&&PAID_THEMES.includes(curTheme()))applyTheme('base',true);renderThemeSel()}}
+function setPro(v){try{localStorage.setItem('soriPro',v?'1':'0')}catch(e){}renderGrowth();syncAd();if(typeof renderThemeSel==='function'){if(!v&&PAID_THEMES.includes(curTheme()))applyTheme('base',true);renderThemeSel()}}
 let logs=[];const charts={};
 function dayKey(d){d=new Date(d);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function logTake(it){const T=target();let tgt=false,match=null;
@@ -770,6 +770,26 @@ $('selTheme').addEventListener('change',e=>{const th=e.target.value;
   else{applyTheme(th,true);say(t('themeSet',{n:t('theme_'+th)}))}});
 renderThemeSel();
 window.addEventListener('resize',()=>{fitScope();renderTakes();renderAlbum();draw(total/(sr||1));['gMin','gWob','gRate'].forEach(drawBars)});
+/* ---------- AdMob 하단 배너: 안드로이드 앱에서만, PRO는 광고 없음 ---------- */
+// 광고 단위 ID는 빌드 종류별 ad-config.js에서 받음(시험 APK는 Google 시험 광고, 스토어 빌드는 실제 광고). 웹에서는 아무것도 안 함
+const AdMob=window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform()&&Capacitor.Plugins&&Capacitor.Plugins.AdMob;
+let adCfg=null,adState='off'; // off | shown | hidden
+function setAdSpace(h){document.documentElement.style.setProperty('--ad-h',h+'px');$('adSlot').style.display=h?'':'none';fitScope();draw(total/(sr||1))}
+async function syncAd(){if(!adCfg)return;
+  try{if(!isPro()&&adState!=='shown'){
+      if(adState==='off')await AdMob.showBanner({adId:adCfg.bannerId,isTesting:adCfg.testing,adSize:'ADAPTIVE_BANNER',position:'BOTTOM_CENTER',margin:0});
+      else await AdMob.resumeBanner();
+      adState='shown';setAdSpace(60)}
+    else if(isPro()&&adState==='shown'){await AdMob.hideBanner();adState='hidden';setAdSpace(0)}}catch(e){}}
+if(AdMob)(async()=>{
+  const cfg=await new Promise(r=>{const s=document.createElement('script');s.src='ad-config.js';s.onload=()=>r(window.SORI_AD||null);s.onerror=()=>r(null);document.head.appendChild(s)});
+  if(!cfg)return;
+  try{await AdMob.initialize({initializeForTesting:cfg.testing})}catch(e){return}
+  // 유럽 등 동의가 필요한 지역이면 Google 동의 창을 먼저 띄움
+  try{const c=await AdMob.requestConsentInfo();if(c.isConsentFormAvailable&&c.status==='REQUIRED')await AdMob.showConsentForm()}catch(e){}
+  // 적응형 배너가 60px보다 크면 자리도 그만큼 늘림
+  AdMob.addListener('bannerAdSizeChanged',z=>{if(adState==='shown'&&z&&z.height)setAdSpace(Math.max(60,Math.ceil(z.height)))});
+  adCfg=cfg;syncAd()})();
 (async()=>{hann=makeHann();await openDB();album=(await dbAll()).sort((a,b)=>new Date(b.date)-new Date(a.date));logs=(await dbAll('log')).sort((a,b)=>a.ts-b.ts);renderGrowth();try{targetId=localStorage.getItem('toneAlbumTarget')||null}catch(e){}if(!album.find(a=>a.id===targetId))targetId=null;renderAlbum();renderTakes();clearMeters();steps();let tb='play';try{tb=localStorage.getItem('soriTab')||'play'}catch(e){}showTab(tb);if(document.fonts)document.fonts.ready.then(()=>{fitScope();draw(total/(sr||1))})})();
 })();
 </script>
