@@ -7,8 +7,14 @@ import com.getcapacitor.BridgeActivity;
 public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        // 화면 꺼짐 방지는 마이크가 켜진 동안에만 (ScreenPlugin)
+        registerPlugin(ScreenPlugin.class);
         super.onCreate(savedInstanceState);
-        // 연주하는 동안 화면이 꺼지지 않게 함
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     }
 }
