@@ -18,7 +18,7 @@ import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
 
 /**
- * 폰 내장 마이크를 일반 녹음(미디어)으로 열어 PCM을 웹 화면에 보냄.
+ * 마이크를 일반 녹음(미디어)으로 열어 PCM을 웹 화면에 보냄.
  * WebView의 getUserMedia는 통화용 오디오 모드(MODE_IN_COMMUNICATION, 블루투스 SCO)를 켜서
  * 차량 오디오나 블루투스 기기가 앱을 전화 통화로 잡기 때문에 이 경로를 씀.
  */
@@ -89,13 +89,18 @@ public class NativeMicPlugin extends Plugin {
             call.reject("mic unavailable");
             return;
         }
-        // 블루투스 기기(차량 등)의 마이크가 아니라 폰 내장 마이크를 씀
+        // 입력 장치: USB 마이크(무선 마이크 수신기 포함) > 유선 이어폰 마이크 > 폰 내장 마이크.
+        // 블루투스 마이크는 통화 채널로만 열리므로 고르지 않음 (차량이 통화로 잡고 음질도 통화 수준)
+        AudioDeviceInfo pick = null;
+        int best = 0;
         for (AudioDeviceInfo d : am.getDevices(AudioManager.GET_DEVICES_INPUTS)) {
-            if (d.getType() == AudioDeviceInfo.TYPE_BUILTIN_MIC) {
-                r.setPreferredDevice(d);
-                break;
+            int rank = inputRank(d.getType());
+            if (rank > best) {
+                best = rank;
+                pick = d;
             }
         }
+        if (pick != null) r.setPreferredDevice(pick);
         try {
             r.startRecording();
         } catch (Exception e) {
@@ -130,6 +135,20 @@ public class NativeMicPlugin extends Plugin {
         ret.put("sampleRate", rate);
         ret.put("unprocessed", source == MediaRecorder.AudioSource.UNPROCESSED);
         call.resolve(ret);
+    }
+
+    private static int inputRank(int type) {
+        switch (type) {
+            case AudioDeviceInfo.TYPE_USB_DEVICE:
+            case AudioDeviceInfo.TYPE_USB_HEADSET:
+                return 3;
+            case AudioDeviceInfo.TYPE_WIRED_HEADSET:
+                return 2;
+            case AudioDeviceInfo.TYPE_BUILTIN_MIC:
+                return 1;
+            default:
+                return 0;
+        }
     }
 
     private synchronized void close() {
