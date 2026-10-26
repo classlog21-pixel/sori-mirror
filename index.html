@@ -276,7 +276,7 @@ main{gap:8px}
   .msg{font-size:.74rem}
 }
 </style>
-<script>try{var th=localStorage.getItem('soriTheme'),pro=localStorage.getItem('soriPro')==='1';if(th==='calm'||(pro&&['forest','sunset','ocean'].indexOf(th)>=0))document.documentElement.dataset.theme=th}catch(e){}</script>
+<script>try{var th=localStorage.getItem('soriTheme'),pro=localStorage.getItem('soriPro')==='1';var ios=window.Capacitor&&Capacitor.getPlatform&&Capacitor.getPlatform()==='ios';if(th==='calm'||(pro&&!ios&&['forest','sunset','ocean'].indexOf(th)>=0))document.documentElement.dataset.theme=th}catch(e){}</script>
 </head>
 <body>
 <main>
@@ -406,6 +406,8 @@ function pickLang(){
   for(const l of ls){const b=String(l).toLowerCase().split('-')[0];if(PACKS[b])return b}
   return 'ko'}
 const LANG=pickLang(),L=PACKS[LANG]||BASE;
+// iOS 앱에는 결제(PRO)가 아직 없으므로 성장 그래프와 PRO 테마를 숨김 (App Store 심사 3.1.1)
+const IOS_APP=!!(window.Capacitor&&Capacitor.getPlatform&&Capacitor.getPlatform()==='ios');
 function has(k){return L[k]!=null||BASE[k]!=null}
 function t(k,v){let s=L[k]!=null?L[k]:BASE[k]!=null?BASE[k]:k;if(v)s=s.replace(/\{(\w+)\}/g,(m,n)=>v[n]!=null?v[n]:m);return s}
 function applyLang(){ // 문구 파일을 못 읽으면 HTML에 적힌 한국어를 그대로 둠
@@ -413,7 +415,7 @@ function applyLang(){ // 문구 파일을 못 읽으면 HTML에 적힌 한국어
   document.querySelectorAll('[data-i18n]').forEach(el=>{if(has(el.dataset.i18n))el.textContent=t(el.dataset.i18n)});
   document.querySelectorAll('[data-i18n-html]').forEach(el=>{if(has(el.dataset.i18nHtml))el.innerHTML=t(el.dataset.i18nHtml)});
   document.querySelectorAll('[data-i18n-aria]').forEach(el=>{if(has(el.dataset.i18nAria))el.setAttribute('aria-label',t(el.dataset.i18nAria))});
-  ['helpSteps','helpScreen'].forEach(k=>{const ul=document.getElementById(k),a=t(k);if(!Array.isArray(a))return;ul.innerHTML='';a.forEach(h=>{const li=document.createElement('li');li.innerHTML=h;ul.appendChild(li)})});
+  ['helpSteps','helpScreen'].forEach(k=>{const ul=document.getElementById(k),a=t(k);if(!Array.isArray(a))return;ul.innerHTML='';a.filter(h=>!(IOS_APP&&h.includes('GROWTH'))).forEach(h=>{const li=document.createElement('li');li.innerHTML=h;ul.appendChild(li)})});
 }
 applyLang();
 const N=4096, MAXH=12, WIN_S=10, RING_S=60;
@@ -736,7 +738,7 @@ function logTake(it){const T=target();let tgt=false,match=null;
 function agg(list){let dur=0,w=0,tn=0,tm=0;list.forEach(e=>{dur+=e.dur;w+=e.wob*e.dur;if(e.tgt){tn++;if(e.match)tm++}});return{n:list.length,min:dur/60,wob:dur?w/dur:NaN,rate:tn?tm/tn*100:NaN}}
 const gFmt={min:v=>t('gMinV',{v:v<10?v.toFixed(1):Math.round(v)}),wob:v=>'±'+v.toFixed(1)+'c',rate:v=>Math.round(v)+'%'};
 function fmtDay(k){const[,m,d]=k.split('-');return(+m)+'/'+(+d)}
-function renderGrowth(){
+function renderGrowth(){if(IOS_APP){$('growth').style.display='none';return}
   const pro=isPro();$('growth').classList.toggle('locked',!pro);$('growthLock').hidden=pro;$('bUnlock').hidden=!PRO_TEST_TOGGLE;$('bRelock').hidden=!(pro&&PRO_TEST_TOGGLE);
   const now=new Date(),mThis=dayKey(now).slice(0,7),mLast=dayKey(new Date(now.getFullYear(),now.getMonth()-1,1)).slice(0,7);
   const a=agg(logs.filter(e=>e.day.startsWith(mThis))),b=agg(logs.filter(e=>e.day.startsWith(mLast)));
@@ -781,7 +783,7 @@ function fitScope(){const sc=$('scope');if($('tabPlay').hidden)return;const wide
 A4S.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent='A4 = '+v+' Hz';$('selA4').appendChild(o)});$('selA4').value=a4;
 $('selA4').addEventListener('change',e=>{a4=+e.target.value;AOFF=1200*Math.log2(a4/440);try{localStorage.setItem('soriA4',a4)}catch(err){}renderAlbum();renderTakes();updateTargetLine();say(t('a4Changed',{v:a4}))});
 /* ---------- theme: 무료 2개(기본, 차분한 색) + PRO 3개(숲, 노을, 밤바다) ---------- */
-const THEMES=['base','calm','forest','sunset','ocean'],PAID_THEMES=['forest','sunset','ocean'];
+const THEMES=IOS_APP?['base','calm']:['base','calm','forest','sunset','ocean'],PAID_THEMES=['forest','sunset','ocean'];
 const THEME_BG={base:'#04060b',calm:'#1c2128',forest:'#121a16',sunset:'#1d1418',ocean:'#0b1426'};
 function curTheme(){const th=document.documentElement.dataset.theme;return THEMES.includes(th)?th:'base'}
 function applyTheme(th,save){if(th==='base')delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme=th;
