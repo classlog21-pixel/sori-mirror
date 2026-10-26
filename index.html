@@ -115,7 +115,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 #bSaveLast{width:84px;height:84px;border-radius:50%;padding:0;font-weight:900;font-size:.9rem;line-height:1.2;white-space:normal;
   border:2px solid var(--ref);color:#fff;background:radial-gradient(circle,rgba(255,43,214,.45),rgba(255,43,214,.08) 70%);box-shadow:0 0 22px rgba(255,43,214,.55),inset 0 0 14px rgba(255,43,214,.5)}
 #bSaveLast:disabled{box-shadow:none;background:rgba(255,43,214,.05);opacity:.4}
-@media (prefers-reduced-motion:no-preference){#bSaveLast:not(:disabled){animation:pulse 2.2s ease-in-out infinite}@keyframes pulse{50%{box-shadow:0 0 34px rgba(255,43,214,.85),inset 0 0 18px rgba(255,43,214,.6)}}}
+@media (prefers-reduced-motion:no-preference){body.live #bSaveLast:not(:disabled){animation:pulse 2.2s ease-in-out infinite}@keyframes pulse{50%{box-shadow:0 0 34px rgba(255,43,214,.85),inset 0 0 18px rgba(255,43,214,.6)}}}
 .filebtn{position:relative;overflow:hidden;display:flex}
 .filebtn input{position:absolute;inset:0;opacity:0;cursor:pointer}
 /* ad banner slot: 광고 코드는 #adSlot 안에 넣으세요 */
@@ -442,7 +442,8 @@ function wtag(c){return inst.trans?t('concertTag',{n:noteOf(c)}):''}
 function noteW(c){return inst.trans?t('concert',{n:c==null?'--':noteOf(c)}):''}
 function avg(a){return a.length?a.reduce((s,v)=>s+v,0)/a.length:NaN}
 function sd(a){if(a.length<2)return 0;const m=avg(a);return Math.sqrt(a.reduce((s,v)=>s+(v-m)**2,0)/(a.length-1))}
-function css(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim()}
+const cssCache=new Map();let cssTheme;
+function css(v){const th=document.documentElement.dataset.theme||'';if(th!==cssTheme){cssTheme=th;cssCache.clear()}let r=cssCache.get(v);if(r===undefined){r=getComputedStyle(document.documentElement).getPropertyValue(v).trim();cssCache.set(v,r)}return r} // 매 프레임 스타일 계산을 피하려고 테마별로 기억
 function say(t){$('msg').textContent=t}
 
 /* ---------- analysis ---------- */
@@ -495,7 +496,7 @@ function showProcessing(tr){ // 브라우저가 실제로 적용한 음성 처�
 }
 function setLed(on){$('led').className='led'+(on?' on':'');$('led').lastChild.textContent=on?'MIC LIVE':'MIC OFF'}
 let wakeLock=null;
-async function keepAwake(on){try{if(on&&'wakeLock' in navigator&&document.visibilityState==='visible'){if(!wakeLock){wakeLock=await navigator.wakeLock.request('screen');wakeLock.addEventListener('release',()=>{wakeLock=null})}}else if(!on&&wakeLock){const w=wakeLock;wakeLock=null;await w.release()}}catch(e){}}
+async function keepAwake(on){try{const sc=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.SoriScreen;if(sc){sc.keepOn({on:!!on&&document.visibilityState==='visible'});return}}catch(e){}try{if(on&&'wakeLock' in navigator&&document.visibilityState==='visible'){if(!wakeLock){wakeLock=await navigator.wakeLock.request('screen');wakeLock.addEventListener('release',()=>{wakeLock=null})}}else if(!on&&wakeLock){const w=wakeLock;wakeLock=null;await w.release()}}catch(e){}}
 document.addEventListener('visibilitychange',()=>{if(running&&document.visibilityState==='visible')keepAwake(true)});
 // 앱이나 탭 화면을 벗어나면 마이크를 자동으로 끔 (불던 중인 음은 기록하지 않음)
 function autoOff(){if(running){stop();say(t('micAutoOff'))}}
@@ -512,19 +513,21 @@ async function start(){
     const src=ctx.createMediaStreamSource(stream);const pad=ctx.createGain();pad.gain.value=padGain();const sp=ctx.createScriptProcessor(2048,1,1);const mute=ctx.createGain();mute.gain.value=0;
     sp.onaudioprocess=e=>{if(!running)return;const d=e.inputBuffer.getChannelData(0);let pk=0;for(let i=0;i<d.length;i++){const v=d[i];ring[wpos]=v;wpos=(wpos+1)%ring.length;if(v>pk)pk=v;else if(-v>pk)pk=-v}total+=d.length;if(pk>=0.98*pad.gain.value)lastClip=total/sr};
     src.connect(pad);pad.connect(sp);sp.connect(mute);mute.connect(ctx.destination);mic={stream,src,pad,sp,mute};
-    running=true;keepAwake(true);$('bMic').textContent='MIC OFF';$('bMic').classList.add('live');setLed(true);say('');steps();tick();
+    running=true;document.body.classList.add('live');keepAwake(true);$('bMic').textContent='MIC OFF';$('bMic').classList.add('live');setLed(true);say('');steps();tick();
   }catch(e){say(t('micError'))}
   $('bMic').disabled=false;
 }
 function stop(){keepAwake(false);
-  running=false;seg=null;frames=[];smooth=null;cur=null; // 불던 중인 음은 기록하지 않음
+  running=false;document.body.classList.remove('live');seg=null;frames=[];smooth=null;cur=null; // 불던 중인 음은 기록하지 않음
   if(mic){mic.sp.onaudioprocess=null;try{mic.src.disconnect();mic.pad.disconnect();mic.sp.disconnect();mic.mute.disconnect()}catch(e){}mic.stream.getTracks().forEach(t=>t.stop());mic=null}
   $('bMic').textContent='MIC ON';$('bMic').classList.remove('live');setLed(false);
   $('note').textContent='--';$('noteW').textContent=noteW(null);['rShape','rEo','rPitch','rWob','rLvl'].forEach(id=>$(id).textContent='–');
   {const L=$('lvl');L.querySelector('i').style.width='0';L.classList.remove('hot')}
   clearMeters();updateTargetLine();steps();
-  say(t('micStopped'));draw(0);
+  say(t('micStopped'));draw(0);idleAudio();
 }
+// 마이크도 재생도 없으면 오디오 장치를 쉬게 함 (배터리)
+function idleAudio(){if(ctx&&!running&&!playing&&ctx.state==='running')ctx.suspend().catch(()=>{})}
 function readRing(endTotal,len){const out=new Float32Array(len);const start=endTotal-len;for(let i=0;i<len;i++){const g=start+i;out[i]=g<0||total-g>ring.length?0:ring[((g%ring.length)+ring.length)%ring.length]}return out}
 
 /* ---------- take segmentation ---------- */
@@ -550,12 +553,13 @@ function closeSeg(endTotal){
 /* ---------- loop ---------- */
 function tick(){
   if(!running)return;requestAnimationFrame(tick);
-  const hop=Math.round(sr*0.046);
+  const hop=Math.round(sr*0.046);let fresh=false;
   while(total-lastAnalyzed>=hop&&total>=N){
     lastAnalyzed=total-lastAnalyzed>sr?total:lastAnalyzed+hop;
     const x=readRing(lastAnalyzed,N);const t=lastAnalyzed/sr;
-    const fr=analyzeFrame(x,t,sr,padOn?-65:-55);frames.push(fr);onFrame(fr,lastAnalyzed);
+    const fr=analyzeFrame(x,t,sr,padOn?-65:-55);frames.push(fr);onFrame(fr,lastAnalyzed);fresh=true;
   }
+  if(!fresh)return; // 새 분석 결과가 있을 때만 다시 그림 (화면 주사율 60~120Hz 대신 약 22번/초)
   const now=total/sr;while(frames.length&&frames[0].t<now-WIN_S)frames.shift();
   if(frames.length)update(frames[frames.length-1],now);draw(now);
 }
@@ -599,13 +603,18 @@ function setup(cv,h){const dpr=window.devicePixelRatio||1;const w=cv.clientWidth
 function contour(c,cx,cy,Rad,p,col,dash,lw){if(!p)return;c.beginPath();for(let k=0;k<=MAXH;k++){const v=p[k%MAXH];const db=v==null?-60:v;const r=Rad*(0.3+0.65*Math.max(0,Math.min(1,(db+60)/60)));const a=k/MAXH*Math.PI*2-Math.PI/2;const x=cx+r*Math.cos(a),y=cy+r*Math.sin(a);k?c.lineTo(x,y):c.moveTo(x,y)}
   c.strokeStyle=col;c.lineWidth=lw;c.setLineDash(dash);c.lineJoin='round';c.shadowColor=col;c.shadowBlur=lw>=1.5?12:0;if(!dash.length&&lw>2){c.fillStyle=col;c.globalAlpha=0.10;c.fill();c.globalAlpha=1}c.stroke();c.shadowBlur=0;c.setLineDash([])}
 function draw(now){drawPolar(now);drawTimeline(now)}
+let polarBg=null;
 function drawPolar(now){
   const[c,w]=setup($('polar'));if(w<80)return;const cx=w/2,cy=w/2,Rad=w/2-24,S=4;c.clearRect(0,0,w,w);
-  c.strokeStyle=css('--grid');c.lineWidth=1;c.setLineDash([3,5]);for(let k=1;k<=4;k++){c.beginPath();c.arc(cx,cy,Rad*k/S,0,7);c.stroke()}c.setLineDash([]);
-  c.beginPath();c.moveTo(cx-Rad,cy);c.lineTo(cx+Rad,cy);c.moveTo(cx,cy-Rad);c.lineTo(cx,cy+Rad);c.stroke();
-  const sw=c.createRadialGradient(cx,cy,0,cx,cy,Rad);sw.addColorStop(0,'rgba(0,240,255,0.07)');sw.addColorStop(1,'rgba(0,240,255,0)');c.fillStyle=sw;c.beginPath();c.arc(cx,cy,Rad,0,7);c.fill();c.strokeStyle=css('--core');c.globalAlpha=0.5;c.lineWidth=1.2;c.beginPath();c.arc(cx,cy,Rad,0,7);c.stroke();c.globalAlpha=1;for(let k=0;k<60;k++){const a=k/60*Math.PI*2,r1=Rad,r2=Rad-(k%5?4:9);c.beginPath();c.moveTo(cx+r1*Math.cos(a),cy+r1*Math.sin(a));c.lineTo(cx+r2*Math.cos(a),cy+r2*Math.sin(a));c.strokeStyle=css('--grid');c.stroke()}
-  c.fillStyle=css('--muted');c.font='11px "Share Tech Mono",monospace';c.textAlign='center';c.fillText(t('polarPitchHi'),cx,12);c.fillText(t('polarPitchLo'),cx,w-2);
-  c.textAlign='left';c.fillText(t('polarEvenLo'),2,cy-8);c.textAlign='right';c.fillText(t('polarEvenHi'),w-2,cy-8);
+  css('--grid');const dpr=window.devicePixelRatio||1,bgKey=[w,dpr,cssTheme,t('polarPitchHi'),t('polarEvenLo'),document.fonts?document.fonts.status:''].join('|');
+  if(!polarBg||polarBg.key!==bgKey){const cv=document.createElement('canvas');cv.width=Math.round(w*dpr);cv.height=Math.round(w*dpr);const c=cv.getContext('2d');c.setTransform(dpr,0,0,dpr,0,0); // 바뀌지 않는 눈금·글씨는 한 번만 그려 둠
+    c.strokeStyle=css('--grid');c.lineWidth=1;c.setLineDash([3,5]);for(let k=1;k<=4;k++){c.beginPath();c.arc(cx,cy,Rad*k/S,0,7);c.stroke()}c.setLineDash([]);
+    c.beginPath();c.moveTo(cx-Rad,cy);c.lineTo(cx+Rad,cy);c.moveTo(cx,cy-Rad);c.lineTo(cx,cy+Rad);c.stroke();
+    const sw=c.createRadialGradient(cx,cy,0,cx,cy,Rad);sw.addColorStop(0,'rgba(0,240,255,0.07)');sw.addColorStop(1,'rgba(0,240,255,0)');c.fillStyle=sw;c.beginPath();c.arc(cx,cy,Rad,0,7);c.fill();c.strokeStyle=css('--core');c.globalAlpha=0.5;c.lineWidth=1.2;c.beginPath();c.arc(cx,cy,Rad,0,7);c.stroke();c.globalAlpha=1;for(let k=0;k<60;k++){const a=k/60*Math.PI*2,r1=Rad,r2=Rad-(k%5?4:9);c.beginPath();c.moveTo(cx+r1*Math.cos(a),cy+r1*Math.sin(a));c.lineTo(cx+r2*Math.cos(a),cy+r2*Math.sin(a));c.strokeStyle=css('--grid');c.stroke()}
+    c.fillStyle=css('--muted');c.font='11px "Share Tech Mono",monospace';c.textAlign='center';c.fillText(t('polarPitchHi'),cx,12);c.fillText(t('polarPitchLo'),cx,w-2);
+    c.textAlign='left';c.fillText(t('polarEvenLo'),2,cy-8);c.textAlign='right';c.fillText(t('polarEvenHi'),w-2,cy-8);
+    polarBg={key:bgKey,cv}}
+  c.save();c.setTransform(1,0,0,1,0,0);c.drawImage(polarBg.cv,0,0);c.restore();
   const T=target();const onT=T&&cur&&Math.abs(cur.cents-T.cents)<=70;
   if(T)contour(c,cx,cy,Rad,T.prof,css('--ref'),[6,5],1.6);
   if(smooth)contour(c,cx,cy,Rad,smooth,css('--core'),[],2.2);
@@ -629,8 +638,8 @@ function drawTimeline(now){
   (h<100?[-50,0,50]:[-50,-25,0,25,50]).forEach(v=>{c.beginPath();c.moveTo(L,y(v));c.lineTo(Rr,y(v));c.stroke();c.fillText((v>0?'+':'')+v,L-4,y(v)+4)});
   if(!running)return;const x=t=>Rr-(now-t)/WIN_S*(Rr-L);c.textAlign='center';for(let s=0;s<=WIN_S;s+=2)c.fillText(s?t('traceSec',{s}):t('traceNow'),x(now-s),h-6);
   const T=target();const v=frames.filter(f=>f.f0);c.lineWidth=2.2;c.lineCap='round';c.strokeStyle=css('--core');c.shadowColor=css('--core');c.shadowBlur=10;
-  for(let i=1;i<v.length;i++){const a=v[i-1],b=v[i];if(b.t-a.t>0.2||Math.abs(a.cents-b.cents)>60)continue;
-    const center=T&&Math.abs(b.cents-T.cents)<=70?T.cents:b.cents-etDev(b.cents);c.beginPath();c.moveTo(x(a.t),y(a.cents-center));c.lineTo(x(b.t),y(b.cents-center));c.stroke()}c.shadowBlur=0
+  c.beginPath();for(let i=1;i<v.length;i++){const a=v[i-1],b=v[i];if(b.t-a.t>0.2||Math.abs(a.cents-b.cents)>60)continue; // 선 조각을 한 번에 그림
+    const center=T&&Math.abs(b.cents-T.cents)<=70?T.cents:b.cents-etDev(b.cents);c.moveTo(x(a.t),y(a.cents-center));c.lineTo(x(b.t),y(b.cents-center))}c.stroke();c.shadowBlur=0
 }
 function thumb(cv,prof,ref){const[c,w]=setup(cv,52);c.clearRect(0,0,w,w);const cx=w/2,cy=w/2,R=w/2-2;if(ref)contour(c,cx,cy,R,ref,css('--ref'),[3,3],1);contour(c,cx,cy,R,prof,css('--core'),[],1.5)}
 
@@ -666,7 +675,7 @@ async function play(it){
   if(playing){try{playing.stop()}catch(e){}playing=null}
   const n=it.pcm.length,b=ctx.createBuffer(1,n,it.sr),ch=b.getChannelData(0);
   if(it.pcm instanceof Int16Array){for(let i=0;i<n;i++)ch[i]=it.pcm[i]/32768}else ch.set(it.pcm);
-  const s=ctx.createBufferSource();s.buffer=b;s.connect(ctx.destination);s.start();playing=s;s.onended=()=>{if(playing===s)playing=null};
+  const s=ctx.createBufferSource();s.buffer=b;s.connect(ctx.destination);s.start();playing=s;s.onended=()=>{if(playing===s){playing=null;idleAudio()}};
 }
 
 /* ---------- import files ---------- */
