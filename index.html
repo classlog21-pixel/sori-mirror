@@ -483,7 +483,9 @@ function dbPutLog(e){try{if(db)db.transaction('log','readwrite').objectStore('lo
 function dbClearLog(){try{if(db)db.transaction('log','readwrite').objectStore('log').clear()}catch(e){}}
 
 /* ---------- mic + ring buffer ---------- */
-let mic=null; // {stream,src,pad,sp,mute}
+let mic=null; // {stream,src,pad,sp,mute} 또는 앱에서는 {native,lis}
+// 앱(안드로이드)에서는 마이크를 네이티브 일반 녹음으로 엶. WebView의 getUserMedia는 통화 모드를 켜서 차량 블루투스가 전화로 잡음
+const NATIVE_MIC=!!(window.Capacitor&&Capacitor.getPlatform&&Capacitor.getPlatform()==='android'&&Capacitor.nativePromise); // NativeMic은 안드로이드에만 있음
 let padOn=false,lastClip=-9;try{padOn=localStorage.getItem('toneAlbumPad')==='1'}catch(e){}
 const PAD=Math.pow(10,-10/20); // -10 dB
 function padGain(){return padOn?PAD:1}
@@ -493,6 +495,15 @@ function showProcessing(tr){ // 브라우저가 실제로 적용한 음성 처�
   const s=tr.getSettings?tr.getSettings():{};const f=v=>t(v===true?'procOn':v===false?'procOff':'procUnknown');
   const on=[s.autoGainControl,s.noiseSuppression,s.echoCancellation,s.voiceIsolation].some(v=>v===true);
   $('micInfo').textContent=t('procAgc')+' '+f(s.autoGainControl)+' · '+t('procNs')+' '+f(s.noiseSuppression)+' · '+t('procEc')+' '+f(s.echoCancellation)+(s.voiceIsolation!==undefined?' · '+t('procVi')+' '+f(s.voiceIsolation):'')+(on?t('procWarn'):'');
+}
+function showProcessingNative(unp){const v=t(unp?'procOff':'procUnknown');$('micInfo').textContent=t('procAgc')+' '+v+' · '+t('procNs')+' '+v+' · '+t('procEc')+' '+v}
+function feed(d,g){let pk=0;for(let i=0;i<d.length;i++){const v=d[i];ring[wpos]=v;wpos=(wpos+1)%ring.length;if(v>pk)pk=v;else if(-v>pk)pk=-v}total+=d.length;if(pk>=0.98*g)lastClip=total/sr}
+function resetBuffers(){ring=new Float32Array(sr*RING_S);wpos=0;total=0;lastAnalyzed=0;frames=[];seg=null;lastClip=-9}
+async function startNative(){
+  ctx=ctx||new (window.AudioContext||window.webkitAudioContext)();
+  const lis=Capacitor.addListener('NativeMic','pcm',e=>{if(!running||!mic||!mic.native)return;const b=atob(e.pcm),n=b.length>>1,d=new Float32Array(n),g=padGain();for(let i=0;i<n;i++){let v=b.charCodeAt(2*i)|(b.charCodeAt(2*i+1)<<8);if(v>32767)v-=65536;d[i]=v/32768*g}feed(d,g)});
+  let r;try{r=await Capacitor.nativePromise('NativeMic','start',{sampleRate:Math.round(ctx.sampleRate)})}catch(e){lis.remove();throw e}
+  sr=r.sampleRate;resetBuffers();showProcessingNative(r.unprocessed);mic={native:true,lis};
 }
 function setLed(on){$('led').className='led'+(on?' on':'');$('led').lastChild.textContent=on?'MIC LIVE':'MIC OFF'}
 let wakeLock=null;
@@ -505,20 +516,24 @@ window.addEventListener('pagehide',autoOff);
 async function start(){
   $('bMic').disabled=true;
   try{
-    const off={echoCancellation:false,noiseSuppression:false,autoGainControl:false,voiceIsolation:false};
-    const stream=await navigator.mediaDevices.getUserMedia({audio:{...off,channelCount:1,googEchoCancellation:false,googAutoGainControl:false,googNoiseSuppression:false,googHighpassFilter:false}});
-    const tr=stream.getAudioTracks()[0];try{await tr.applyConstraints(off)}catch(e){}showProcessing(tr);
-    ctx=ctx||new (window.AudioContext||window.webkitAudioContext)();await ctx.resume();sr=ctx.sampleRate;
-    ring=new Float32Array(sr*RING_S);wpos=0;total=0;lastAnalyzed=0;frames=[];seg=null;lastClip=-9;
-    const src=ctx.createMediaStreamSource(stream);const pad=ctx.createGain();pad.gain.value=padGain();const sp=ctx.createScriptProcessor(2048,1,1);const mute=ctx.createGain();mute.gain.value=0;
-    sp.onaudioprocess=e=>{if(!running)return;const d=e.inputBuffer.getChannelData(0);let pk=0;for(let i=0;i<d.length;i++){const v=d[i];ring[wpos]=v;wpos=(wpos+1)%ring.length;if(v>pk)pk=v;else if(-v>pk)pk=-v}total+=d.length;if(pk>=0.98*pad.gain.value)lastClip=total/sr};
-    src.connect(pad);pad.connect(sp);sp.connect(mute);mute.connect(ctx.destination);mic={stream,src,pad,sp,mute};
+    if(NATIVE_MIC)await startNative();else await startWeb();
     running=true;document.body.classList.add('live');keepAwake(true);$('bMic').textContent='MIC OFF';$('bMic').classList.add('live');setLed(true);say('');steps();tick();
   }catch(e){say(t('micError'))}
   $('bMic').disabled=false;
 }
+async function startWeb(){
+    const off={echoCancellation:false,noiseSuppression:false,autoGainControl:false,voiceIsolation:false};
+    const stream=await navigator.mediaDevices.getUserMedia({audio:{...off,channelCount:1,googEchoCancellation:false,googAutoGainControl:false,googNoiseSuppression:false,googHighpassFilter:false}});
+    const tr=stream.getAudioTracks()[0];try{await tr.applyConstraints(off)}catch(e){}showProcessing(tr);
+    ctx=ctx||new (window.AudioContext||window.webkitAudioContext)();await ctx.resume();sr=ctx.sampleRate;
+    resetBuffers();
+    const src=ctx.createMediaStreamSource(stream);const pad=ctx.createGain();pad.gain.value=padGain();const sp=ctx.createScriptProcessor(2048,1,1);const mute=ctx.createGain();mute.gain.value=0;
+    sp.onaudioprocess=e=>{if(!running)return;feed(e.inputBuffer.getChannelData(0),pad.gain.value)};
+    src.connect(pad);pad.connect(sp);sp.connect(mute);mute.connect(ctx.destination);mic={stream,src,pad,sp,mute};
+}
 function stop(){keepAwake(false);
   running=false;document.body.classList.remove('live');seg=null;frames=[];smooth=null;cur=null; // 불던 중인 음은 기록하지 않음
+  if(mic&&mic.native){mic.lis.remove();Capacitor.nativePromise('NativeMic','stop').catch(()=>{});mic=null}
   if(mic){mic.sp.onaudioprocess=null;try{mic.src.disconnect();mic.pad.disconnect();mic.sp.disconnect();mic.mute.disconnect()}catch(e){}mic.stream.getTracks().forEach(t=>t.stop());mic=null}
   $('bMic').textContent='MIC ON';$('bMic').classList.remove('live');setLed(false);
   $('note').textContent='--';$('noteW').textContent=noteW(null);['rShape','rEo','rPitch','rWob','rLvl'].forEach(id=>$(id).textContent='–');
@@ -694,7 +709,7 @@ $('fImport').addEventListener('change',async e=>{
   if(ok)say(t('importDone',{n:ok}));renderAlbum();renderTakes()});
 
 $('bMic').addEventListener('click',()=>running?stop():start());
-$('bPad').addEventListener('click',()=>{padOn=!padOn;try{localStorage.setItem('toneAlbumPad',padOn?'1':'0')}catch(e){}if(mic)mic.pad.gain.value=padGain();renderPad()});
+$('bPad').addEventListener('click',()=>{padOn=!padOn;try{localStorage.setItem('toneAlbumPad',padOn?'1':'0')}catch(e){}if(mic&&mic.pad)mic.pad.gain.value=padGain();renderPad()});
 renderPad();
 INSTS.forEach(i=>{const o=document.createElement('option');o.value=i.id;o.textContent=instLabel(i);$('selInst').appendChild(o)});$('selInst').value=inst.id;$('noteW').textContent=noteW(null);
 $('selInst').addEventListener('change',e=>{inst=INSTS.find(i=>i.id===e.target.value)||inst;try{localStorage.setItem('toneAlbumInst',inst.id)}catch(err){}seg=null;if(!cur)$('noteW').textContent=noteW(null);renderAlbum();renderTakes();applyMode();say(t(isVoice()?'modeVoice':'instChanged',{k:instLabel(inst)}))});
