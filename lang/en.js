@@ -100,7 +100,7 @@
     'Press MIC ON and play as usual. Each note you hold and release is logged in LIVE LOG automatically. The screen stays on while the mic is on. Leaving the screen (home button or another app) turns the mic off automatically. Press MIC OFF when you finish. Nothing is recorded while the mic is off.',
     'When you like a tone, press the big SAVE button in the middle. You can also listen with ▶ in the list and save from there.',
     'Press "Set target" in the album to jump to the Play tab: the pink dashed line is the target and the blue line is your current tone. Try to make the two lines overlap.',
-    'If "input clipping" appears next to Level and the level bar turns pink, the sound is too loud for the mic. Move the phone a little away from the instrument. -10dB PAD lowers analysis and recording level by 10 dB, but it cannot recover sound that already clipped in the mic.',
+    'If "input clipping" appears on the level bar and the bar turns pink, the sound is too loud for the mic. Move the phone a little away from the instrument. -10dB PAD lowers analysis and recording level by 10 dB, but it cannot recover sound that already clipped in the mic.',
     'You can also add a teacher\'s or a reference recording with FILE. A different mic will make the shape look a bit different.',
     'Play from the same spot and distance each time. Recordings stay on this device and are never sent anywhere.',
     'GROWTH (PRO) logs each note you hold and release, by date. Compare sound time, pitch wobble and target match (the same limits that turn STATUS green) between this month and last month, and see the last 30 days as graphs. Only numbers are stored on this device, not the audio.'

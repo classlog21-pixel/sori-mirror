@@ -275,6 +275,28 @@ main{gap:8px}
   .dock{padding:2px 10px 6px}.dock-inner{gap:2px}
   .msg{font-size:.74rem}
 }
+/* 값이 바뀌어도 칸의 크기·위치는 그대로, 글자만 바뀌게 고정 */
+.led{min-width:7.6em;justify-content:flex-end}
+.meter .val,.tile b,#rPitch{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+.diffs{--dfs:.88rem;--dpad:3px;--dgap:4px;gap:var(--dgap);height:calc(3 * (var(--dfs) * 1.3 + 2 * var(--dpad)) + 2 * var(--dgap));overflow:hidden}
+.diffs span{flex:0 0 auto;line-height:1.3;padding:var(--dpad) 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.diffs .sub{white-space:normal;line-height:1.3;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3}
+.lvl .lvltag{position:absolute;right:0;top:50%;transform:translateY(-50%);font-style:normal;font-family:var(--sans);font-size:.6rem;line-height:1.3;padding:0 5px;white-space:nowrap;color:var(--warm);background:var(--bg);border:1px solid var(--warm);pointer-events:none}
+.lvl .lvltag.hot{color:#fff;background:var(--ref);border-color:var(--ref)}
+.lvl .lvltag:empty{display:none}
+.msg{position:relative;width:100%;height:1.3em;min-height:0;line-height:1.3}
+.msg span{position:absolute;left:0;right:0;bottom:0;width:fit-content;max-width:100%;margin:0 auto;padding:1px 8px;background:var(--bg)}
+@media (max-width:899px){
+  .diffs{--dfs:.76rem;--dpad:1px;--dgap:2px}
+  .diffs .same{font-size:.84rem}
+  #statusFrame .tiles{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  #statusFrame .tile{min-width:0}
+  #statusFrame .tile small{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+  #statusFrame .tile b{flex:1 1 0;min-width:0;text-align:right}
+  #statusFrame #rWob{flex:0 0 auto;min-width:12ch}
+  body.voice #statusFrame #rWob{min-width:16ch}
+  #statusFrame #rLvl{flex:0 0 auto;min-width:6ch;text-align:right}
+}
 </style>
 <script>try{var th=localStorage.getItem('soriTheme'),pro=localStorage.getItem('soriPro')==='1';var app=window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform();if(th==='calm'||(pro&&!app&&['forest','sunset','ocean'].indexOf(th)>=0))document.documentElement.dataset.theme=th}catch(e){}</script>
 </head>
@@ -317,7 +339,7 @@ main{gap:8px}
         </div>
         <div class="tiles">
           <div class="tile"><small data-i18n="tileWobble">음정 흔들림 (2초)</small><b id="rWob">–</b></div>
-          <div class="tile"><small data-i18n="tileLevel">음량</small><b id="rLvl">–</b><div class="lvl" id="lvl"><i></i></div></div>
+          <div class="tile"><small data-i18n="tileLevel">음량</small><b id="rLvl">–</b><div class="lvl" id="lvl"><i></i><em class="lvltag" id="lvlTag"></em></div></div>
         </div>
       </section>
       <section class="frame" id="traceFrame" data-i18n-aria="traceAria" aria-label="음정 흐름">
@@ -446,7 +468,7 @@ function avg(a){return a.length?a.reduce((s,v)=>s+v,0)/a.length:NaN}
 function sd(a){if(a.length<2)return 0;const m=avg(a);return Math.sqrt(a.reduce((s,v)=>s+(v-m)**2,0)/(a.length-1))}
 const cssCache=new Map();let cssTheme;
 function css(v){const th=document.documentElement.dataset.theme||'';if(th!==cssTheme){cssTheme=th;cssCache.clear()}let r=cssCache.get(v);if(r===undefined){r=getComputedStyle(document.documentElement).getPropertyValue(v).trim();cssCache.set(v,r)}return r} // 매 프레임 스타일 계산을 피하려고 테마별로 기억
-function say(t){$('msg').textContent=t}
+function say(t){const m=$('msg');m.replaceChildren();if(t){const sp=document.createElement('span');sp.textContent=t;m.appendChild(sp)}} // 긴 안내는 한 줄 칸 위로 겹쳐 떠서 아래 칸들이 움직이지 않음
 
 /* ---------- analysis ---------- */
 function fft(re,im){const n=re.length;for(let i=1,j=0;i<n;i++){let b=n>>1;for(;j&b;b>>=1)j^=b;j^=b;if(i<j){let t=re[i];re[i]=re[j];re[j]=t;t=im[i];im[i]=im[j];im[j]=t}}
@@ -491,7 +513,7 @@ const NATIVE_MIC=!!(window.Capacitor&&Capacitor.getPlatform&&Capacitor.getPlatfo
 let padOn=false,lastClip=-9;try{padOn=localStorage.getItem('toneAlbumPad')==='1'}catch(e){}
 const PAD=Math.pow(10,-10/20); // -10 dB
 function padGain(){return padOn?PAD:1}
-function renderPad(){$('bPad').textContent='-10dB PAD '+(padOn?'ON':'OFF');$('bPad').setAttribute('aria-pressed',padOn)}
+function renderPad(){$('bPad').textContent='-10dB PAD '+(padOn?'ON\u00a0':'OFF');$('bPad').setAttribute('aria-pressed',padOn)}
 function showProcessing(tr){ // 브라우저가 실제로 적용한 음성 처리 표시 (경고는 아래 메시지 줄에도)
   setTimeout(()=>{const s=tr.getSettings?tr.getSettings():{};if([s.autoGainControl,s.noiseSuppression,s.echoCancellation,s.voiceIsolation].some(v=>v===true))say(t('procWarn').replace(/^ — /,''))},600);
   const s=tr.getSettings?tr.getSettings():{};const f=v=>t(v===true?'procOn':v===false?'procOff':'procUnknown');
@@ -538,7 +560,7 @@ function stop(){keepAwake(false);
   if(mic&&mic.native){mic.lis.remove();Capacitor.nativePromise('NativeMic','stop').catch(()=>{});mic=null}
   if(mic){mic.sp.onaudioprocess=null;try{mic.src.disconnect();mic.pad.disconnect();mic.sp.disconnect();mic.mute.disconnect()}catch(e){}mic.stream.getTracks().forEach(t=>t.stop());mic=null}
   $('bMic').textContent='MIC ON';$('bMic').classList.remove('live');setLed(false);
-  $('note').textContent='--';$('noteW').textContent=noteW(null);['rShape','rEo','rPitch','rWob','rLvl'].forEach(id=>$(id).textContent='–');
+  $('note').textContent='--';$('noteW').textContent=noteW(null);['rShape','rEo','rPitch','rWob','rLvl'].forEach(id=>$(id).textContent='–');$('lvlTag').textContent='';
   {const L=$('lvl');L.querySelector('i').style.width='0';L.classList.remove('hot')}
   clearMeters();updateTargetLine();steps();
   say(t('micStopped'));draw(0);idleAudio();
@@ -596,7 +618,8 @@ function steps(){const T=target();const s1=$('st1'),s2=$('st2'),s3=$('st3');cons
   [s1,s2,s3].forEach((el,i)=>{el.className='step'+(i+1<cur?' done':i+1===cur?' now':'')});if(T&&running){s3.className='step now'}}
 function update(fr,now){steps();
   const clip=now-lastClip<1;
-  $('rLvl').textContent=(fr.db>-100?Math.round(fr.db)+' dB':'–')+(padOn?' (PAD)':'')+(clip?t('clip'):'');{const L=$('lvl');L.querySelector('i').style.width=Math.max(0,Math.min(100,(fr.db+60)/60*100))+'%';L.classList.toggle('hot',clip)}
+  $('rLvl').textContent=fr.db>-100?Math.round(fr.db)+' dB':'–';{const L=$('lvl'),g=$('lvlTag');L.querySelector('i').style.width=Math.max(0,Math.min(100,(fr.db+60)/60*100))+'%';L.classList.toggle('hot',clip);
+    const tg=[padOn?'PAD':'',clip?t('clip').replace(/^\s*·\s*/,''):''].filter(Boolean).join(' · ');if(g.textContent!==tg)g.textContent=tg;g.classList.toggle('hot',clip)} // PAD·입력 넘침은 막대 위에 겹쳐 표시해서 칸이 움직이지 않게
   const M=MP(),recent=frames.filter(f=>f.f0&&f.t>now-M.win);
   if(recent.length<3){$('note').textContent='--';$('noteW').textContent=noteW(null);smooth=null;cur=null;return}
   const cents=avg(recent.map(f=>f.cents));smooth=isVoice()&&seg&&seg.frames.length>=10?meanProf(seg.frames.slice(Math.floor(seg.frames.length*0.2)).slice(-65)):meanProf(recent);const eo=avg(recent.map(f=>f.eo)); // 성악: 지금 음의 안정된 부분 평균을 테두리로
@@ -716,7 +739,7 @@ renderPad();
 INSTS.forEach(i=>{const o=document.createElement('option');o.value=i.id;o.textContent=instLabel(i);$('selInst').appendChild(o)});$('selInst').value=inst.id;$('noteW').textContent=noteW(null);
 $('selInst').addEventListener('change',e=>{inst=INSTS.find(i=>i.id===e.target.value)||inst;try{localStorage.setItem('toneAlbumInst',inst.id)}catch(err){}seg=null;if(!cur)$('noteW').textContent=noteW(null);renderAlbum();renderTakes();applyMode();say(t(isVoice()?'modeVoice':'instChanged',{k:instLabel(inst)}))});
 // 모드에 따라 게이지 끝 글씨와 흔들림 칸 이름을 바꿈
-function applyMode(){const m=MP(),v=isVoice();document.querySelectorAll('[data-i18n=mPitchLo]').forEach(e=>e.textContent=t(v?'mPitchLoV':'mPitchLo'));document.querySelectorAll('[data-i18n=mPitchHi]').forEach(e=>e.textContent=t(v?'mPitchHiV':'mPitchHi'));
+function applyMode(){const m=MP(),v=isVoice();document.body.classList.toggle('voice',v);document.querySelectorAll('[data-i18n=mPitchLo]').forEach(e=>e.textContent=t(v?'mPitchLoV':'mPitchLo'));document.querySelectorAll('[data-i18n=mPitchHi]').forEach(e=>e.textContent=t(v?'mPitchHiV':'mPitchHi'));
   document.querySelectorAll('[data-i18n=tileWobble]').forEach(e=>e.textContent=t(v?'tileVib':'tileWobble'));clearMeters();draw(total/(sr||1))}
 applyMode();
 // 비브라토: 최근 2초 같은 음에서 1초 이동평균을 뺀 나머지로 폭(±cents)과 속도(회/초)를 계산
